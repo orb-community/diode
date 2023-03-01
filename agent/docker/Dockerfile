@@ -1,3 +1,7 @@
-FROM debian:bullseye-slim
+FROM python:3.8.16-slim-buster
 
-RUN apt-get install python3 python-pip
+RUN /usr/local/bin/python -m pip install --upgrade pip && pip install suzieq==0.20.1
+
+COPY backend/suzieq/extension /tmp/extension
+
+ENTRYPOINT [ "bash" ]
