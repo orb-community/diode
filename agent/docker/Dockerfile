@@ -8,6 +8,7 @@ ADD ./agent/ /tmp/agent/
 
 RUN SQPATH=$(pip show suzieq |  sed -n 's/Location: \(.*\)/\1/p') \
 && cp -r "/tmp/agent/backend/suzieq/extension/poller/" "$SQPATH/suzieq/" \
-&& cp -r "/tmp/agent/backend/suzieq/extension/db/" "$SQPATH/suzieq/"
+&& cp -r "/tmp/agent/backend/suzieq/extension/db/" "$SQPATH/suzieq/" \
+&& rm -rf /tmp/agent/
 
 ENTRYPOINT [ "bash" ]
