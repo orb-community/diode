@@ -9,8 +9,9 @@ COPY ./agent/ /tmp/agent/
 RUN SQPATH=$(pip show suzieq |  sed -n 's/Location: \(.*\)/\1/p') \
 && cp -r "/tmp/agent/backend/suzieq/extension/poller/" "$SQPATH/suzieq/" \
 && cp -r "/tmp/agent/backend/suzieq/extension/db/" "$SQPATH/suzieq/" \
-&& cp -r "/tmp/agent/docker/suzieq-cfg.yml" "/root/.suzieq/suzieq-cfg.yml" \
-&& cp -r "/tmp/agent/docker/inventory.yml" "/root/.suzieq/inventory.yml" \
+&& mkdir /root/.suzieq \
+&& cp -r /tmp/agent/docker/suzieq-cfg.yml /root/.suzieq/suzieq-cfg.yml \
+&& cp -r /tmp/agent/docker/inventory.yml /root/.suzieq/inventory.yml \
 && rm -rf /tmp/agent/
 
 ENTRYPOINT [ "bash" ]
