@@ -1,9 +1,18 @@
 sources:
-  - name: lab-source
-    hosts:
-      - url: ssh://sandbox-iosxr-1.cisco.com username=USERNAME password=PASSWORD
-  - name: default
-    ignore-known-hosts: true namespaces:
-  - name: lab
-    source: lab-source
-    device: default
+  - name: lab-cisco
+    hosts:
+      - url: 'ssh://networklab.ops.orb.live'
+devices:
+  - name: cisco_ios_device
+    transport: ssh
+    ignore-known-hosts: true
+    slow-host: true
+auths:
+  - name: cisco
+    username: USERNAME
+    password: 'plain:PASSWORD'
+namespaces:
+  - name: lab
+    source: lab-cisco
+    device: cisco_ios_device
+    auth: cisco
