@@ -6,6 +6,7 @@ RUN /usr/local/bin/python -m pip install --upgrade pip && pip install suzieq==0.
 
 ADD ./agent/ /tmp/agent/
 ADD ./agent/docker/suzieq-cfg.yml /root/.suzieq/suzieq-cfg.yml
+ADD ./agent/docker/inventory.yml /root/.suzieq/inventory.yml
 
 RUN SQPATH=$(pip show suzieq |  sed -n 's/Location: \(.*\)/\1/p') \
 && cp -r "/tmp/agent/backend/suzieq/extension/poller/" "$SQPATH/suzieq/" \
