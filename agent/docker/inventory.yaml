@@ -1,0 +1,9 @@
+sources:
+  - name: lab-source
+    hosts:
+      - url: ssh://sandbox-iosxr-1.cisco.com username=USERNAME password=PASSWORD
+  - name: default
+    ignore-known-hosts: true namespaces:
+  - name: lab
+    source: lab-source
+    device: default
