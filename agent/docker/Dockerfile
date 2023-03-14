@@ -23,4 +23,6 @@ RUN SQPATH=$(pip show suzieq |  sed -n 's/Location: \(.*\)/\1/p') \
 && cp -r /tmp/agent/docker/inventory.yml /root/.suzieq/inventory.yml \
 && rm -rf /tmp/agent/
 
+COPY --from=builder /tmp/build/diode-agent /usr/local/bin/diode-agent
+
 ENTRYPOINT [ "bash" ]
