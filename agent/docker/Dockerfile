@@ -24,8 +24,8 @@ RUN SQPATH=$(pip show suzieq |  sed -n 's/Location: \(.*\)/\1/p') \
 && rm -rf /tmp/agent/
 
 COPY --from=builder /tmp/build/diode-agent /usr/local/bin/diode-agent
-COPY --from=builder /go/src/github.com/orb-community/diode/agent/docker/run-agent.sh /run-agent.sh
+COPY --from=builder /go/src/github.com/orb-community/diode/agent/docker/run-agent.sh /usr/local/bin/run-agent.sh
 
-RUN chmod a+x /run-agent.sh
+RUN chmod a+x /usr/local/bin/run-agent.sh
 
-ENTRYPOINT [ "/run-agent.sh" ]
+ENTRYPOINT [ "/usr/local/bin/run-agent.sh" ]
