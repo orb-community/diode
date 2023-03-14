@@ -28,4 +28,4 @@ COPY --from=builder /go/src/github.com/orb-community/diode/agent/docker/run-agen
 
 RUN chmod a+x /usr/local/bin/run-agent.sh
 
-ENTRYPOINT [ "/usr/local/bin/run-agent.sh" ]
+ENTRYPOINT [ "/bin/bash","/usr/local/bin/run-agent.sh" ]
