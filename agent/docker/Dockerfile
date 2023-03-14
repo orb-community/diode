@@ -5,7 +5,7 @@ COPY go.mod .
 RUN go mod tidy
 COPY . .
 RUN apk update && apk add make build-base git
-RUN mkdir /tmp/build && CGO_ENABLED=1 make agent_bin && mv build/diode-agent /tmp/build/diode-agent
+RUN mkdir /tmp/build && CGO_ENABLED=0 make agent_bin && mv build/diode-agent /tmp/build/diode-agent
 
 FROM python:3.8.16-slim-buster
 
