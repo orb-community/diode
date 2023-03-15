@@ -75,7 +75,7 @@ func (s *suzieqBackend) Configure(logger *zap.Logger, name string, scrapper chan
 
 	s.logger = logger
 	s.policyName = name
-	s.returnPrefix = "{'" + name + "':{'backend':suzieq,"
+	s.returnPrefix = "{\"" + name + "\":{\"backend\":\"suzieq\", "
 	s.scrapper = scrapper
 
 	return nil
@@ -169,7 +169,7 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 }
 
 func (s *suzieqBackend) proccessDiscovery(data string) {
-	discoveryData := []byte(s.returnPrefix + data)
+	discoveryData := []byte(s.returnPrefix + data + "}")
 	var jsonData map[string]map[string]interface{}
 	if err := json.Unmarshal(discoveryData, &jsonData); err != nil {
 		s.logger.Error("process suzieq output error", zap.Error(err))
@@ -177,15 +177,20 @@ func (s *suzieqBackend) proccessDiscovery(data string) {
 	}
 
 	if jsonData[s.policyName]["device"] != nil {
-		s.logger.Info(string(discoveryData))
+		s.logger.Info("suzieq device found")
 		s.scrapper <- discoveryData
-		return
 	}
 
-	if jsonData[s.policyName]["sqPoller"] != nil {
-		//do logic
-		return
-	}
+	// if jsonData[s.policyName]["sqPoller"] != nil {
+	// 	pollerData := jsonData[s.policyName]["sqPoller"].([]map[string]interface{})
+	// 	for _, val := range pollerData {
+	// 		if val["service"] != nil && val["service"].(string) == "device" {
+	// 			s.logger.Info(string(discoveryData))
+	// 			s.scrapper <- discoveryData
+	// 			return
+	// 		}
+	// 	}
+	// }
 }
 
 func (s *suzieqBackend) Stop(ctx context.Context) error {

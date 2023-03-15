@@ -90,7 +90,9 @@ func (a *diodeAgent) Start(ctx context.Context, cancelFunc context.CancelFunc) e
 
 	agentCtx := context.WithValue(ctx, "routine", "agentRoutine")
 	a.cancelFunction = cancelFunc
-
+	if err := a.scrapper.Start(); err != nil {
+		return err
+	}
 	a.logger.Info("agent started", zap.Any("routine", agentCtx.Value("routine")))
 	if err := a.startPolicies(ctx); err != nil {
 		return err

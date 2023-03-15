@@ -1,7 +1,7 @@
 """
 This module contains the logic of the writer for the 'logging' mode
 """
-import logging
+import logging, json
 
 from suzieq.poller.worker.writers.output_worker import OutputWorker
 
@@ -25,6 +25,6 @@ class LoggingOutputWorker(OutputWorker):
         for record in data["records"]:
             ret_val[data["topic"]].append(record)
 
-        logger.warning(f'{ret_val}')
+        logger.warning(json.dumps(ret_val))
 
 
