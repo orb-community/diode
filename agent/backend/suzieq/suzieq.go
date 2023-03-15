@@ -177,6 +177,7 @@ func (s *suzieqBackend) proccessDiscovery(data string) {
 	}
 
 	if jsonData[s.policyName]["device"] != nil {
+		s.logger.Info(string(discoveryData))
 		s.scrapper <- discoveryData
 		return
 	}
