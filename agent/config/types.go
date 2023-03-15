@@ -4,14 +4,22 @@
 
 package config
 
-type Debug struct {
-	Enable bool `mapstructure:"enable"`
+type Policy struct {
+	Kind    string                 `mapstructure:"kind"`
+	Backend string                 `mapstructure:"backend"`
+	Data    map[string]interface{} `mapstructure:"data"`
+}
+
+type DiodeConfig struct {
+	Debug      bool   `mapstructure:"debug"`
+	OutputType string `mapstructure:"output_type"`
+	OutputPath string `mapstructure:"output_path"`
 }
 
 type DiodeAgent struct {
-	Backends map[string]map[string]string `mapstructure:"backends"`
-	Tags     map[string]string            `mapstructure:"tags"`
-	Debug    Debug                        `mapstructure:"debug"`
+	Tags        map[string]string `mapstructure:"tags"`
+	DiodeConfig DiodeConfig       `mapstructure:"config"`
+	Policies    map[string]Policy `mapstructure:"policies"`
 }
 
 type Config struct {

@@ -20,13 +20,11 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const (
-	defaultConfig = "/opt/diode/agent.yaml"
-)
-
 var (
-	cfgFiles []string
-	Debug    bool
+	cfgFiles   []string
+	Debug      bool
+	OutputType string
+	OutputPath string
 )
 
 func Run(cmd *cobra.Command, args []string) {
@@ -41,7 +39,9 @@ func Run(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	config.DiodeAgent.Debug.Enable = Debug
+	config.DiodeAgent.DiodeConfig.Debug = Debug
+	config.DiodeAgent.DiodeConfig.OutputType = OutputType
+	config.DiodeAgent.DiodeConfig.OutputPath = OutputPath
 
 	// logger
 	var logger *zap.Logger
@@ -112,7 +112,7 @@ func mergeOrError(path string) {
 	v.SetEnvKeyReplacer(replacer)
 
 	// note: viper seems to require a default (or a BindEnv) to be overridden by environment variables
-	v.SetDefault("diode.debug.enable", false)
+	v.SetDefault("diode.config.debug", false)
 
 	if len(path) > 0 {
 		cobra.CheckErr(v.ReadInConfig())
@@ -137,12 +137,9 @@ func mergeOrError(path string) {
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 
-	// set defaults first
 	mergeOrError("")
 	if len(cfgFiles) == 0 {
-		if _, err := os.Stat(defaultConfig); !os.IsNotExist(err) {
-			mergeOrError(defaultConfig)
-		}
+		cobra.CheckErr("Config files were not provided")
 	} else {
 		for _, conf := range cfgFiles {
 			mergeOrError(conf)
@@ -165,6 +162,8 @@ func main() {
 
 	runCmd.Flags().StringSliceVarP(&cfgFiles, "config", "c", []string{}, "Path to config files (may be specified multiple times)")
 	runCmd.PersistentFlags().BoolVarP(&Debug, "debug", "d", false, "Enable verbose (debug level) output")
+	runCmd.PersistentFlags().StringVarP(&OutputType, "type", "t", "file", "Define agent output type")
+	runCmd.PersistentFlags().StringVarP(&OutputPath, "output_path", "o", "", "Define agent output path")
 
 	rootCmd.AddCommand(runCmd)
 	rootCmd.Execute()

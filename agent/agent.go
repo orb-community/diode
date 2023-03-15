@@ -12,7 +12,12 @@ import (
 	"github.com/orb-community/diode/agent/backend"
 	"github.com/orb-community/diode/agent/backend/factory"
 	"github.com/orb-community/diode/agent/config"
+	"github.com/orb-community/diode/agent/scrapper"
 	"go.uber.org/zap"
+)
+
+const (
+	Kind = "discovery"
 )
 
 type Agent interface {
@@ -28,28 +33,39 @@ type diodeAgent struct {
 	backends       map[string]backend.Backend
 	backendState   map[string]*backend.State
 	cancelFunction context.CancelFunc
+	scrapper       scrapper.Scrapper
 }
 
 var _ Agent = (*diodeAgent)(nil)
 
 func New(logger *zap.Logger, c config.Config) (Agent, error) {
-	return &diodeAgent{logger: logger, config: c}, nil
+	var s scrapper.Scrapper
+	var err error
+	if s, err = scrapper.New(logger, c); err != nil {
+		return nil, err
+	}
+	return &diodeAgent{logger: logger, config: c, scrapper: s}, nil
 }
 
-func (a *diodeAgent) startBackends(agentCtx context.Context) error {
+func (a *diodeAgent) startPolicies(agentCtx context.Context) error {
 	a.logger.Info("registered backends", zap.Strings("values", factory.GetList()))
-	a.logger.Info("requested backends", zap.Any("values", a.config.DiodeAgent.Backends))
-	if len(a.config.DiodeAgent.Backends) == 0 {
-		return errors.New("no backends specified")
+	if len(a.config.DiodeAgent.Policies) == 0 {
+		return errors.New("no policies specified")
 	}
-	a.backends = make(map[string]backend.Backend, len(a.config.DiodeAgent.Backends))
+	a.backends = make(map[string]backend.Backend, len(a.config.DiodeAgent.Policies))
 	a.backendState = make(map[string]*backend.State)
-	for name, configurationEntry := range a.config.DiodeAgent.Backends {
-		be, err := factory.GetBackend(name)
+	for name, policy := range a.config.DiodeAgent.Policies {
+		be, err := factory.GetBackend(policy.Backend)
 		if err != nil {
 			return err
 		}
-		if err = be.Configure(a.logger, configurationEntry); err != nil {
+		if a.backends[name] != nil {
+			return errors.New("policy '" + name + "' already exists")
+		}
+		if policy.Kind != Kind {
+			return errors.New("invalid policy kind")
+		}
+		if err = be.Configure(a.logger, name, a.scrapper.GetChannel(), policy.Data); err != nil {
 			return err
 		}
 		backendCtx := context.WithValue(agentCtx, "routine", name)
@@ -76,7 +92,7 @@ func (a *diodeAgent) Start(ctx context.Context, cancelFunc context.CancelFunc) e
 	a.cancelFunction = cancelFunc
 
 	a.logger.Info("agent started", zap.Any("routine", agentCtx.Value("routine")))
-	if err := a.startBackends(ctx); err != nil {
+	if err := a.startPolicies(ctx); err != nil {
 		return err
 	}
 

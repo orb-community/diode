@@ -6,22 +6,28 @@ package suzieq
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/go-cmd/cmd"
 	"github.com/orb-community/diode/agent/backend"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 )
 
 type suzieqBackend struct {
 	logger        *zap.Logger
-	binary        string
-	configFile    string
-	suzieqVersion string
+	policyName    string
+	returnPrefix  string
+	inventoryPath string
 	proc          *cmd.Cmd
 	statusChan    <-chan cmd.Status
+	scrapper      chan []byte
 	startTime     time.Time
 	cancelFunc    context.CancelFunc
 	ctx           context.Context
@@ -49,8 +55,29 @@ func (s *suzieqBackend) getProcRunningStatus() (backend.RunningStatus, string, e
 	return backend.Running, "", nil
 }
 
-func (s *suzieqBackend) Configure(logger *zap.Logger, config map[string]string) error {
+func (s *suzieqBackend) Configure(logger *zap.Logger, name string, scrapper chan []byte, data map[string]interface{}) error {
+	var prs bool
+	var inventory interface{}
+	if inventory, prs = data["inventory"]; !prs {
+		return errors.New("you must set suzieq inventory")
+	}
+
+	d, err := yaml.Marshal(&inventory)
+	if err != nil {
+		return err
+	}
+
+	s.inventoryPath = "/tmp/" + name + "_inventory.yml"
+	err = os.WriteFile(s.inventoryPath, d, 0644)
+	if err != nil {
+		return err
+	}
+
 	s.logger = logger
+	s.policyName = name
+	s.returnPrefix = "{'" + name + "':{'backend':suzieq,"
+	s.scrapper = scrapper
+
 	return nil
 }
 
@@ -70,6 +97,8 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 	s.ctx = ctx
 
 	sOptions := []string{
+		"-I",
+		s.inventoryPath,
 		"-o",
 		"logging",
 		"--no-coalescer",
@@ -82,6 +111,8 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 		Streaming: true,
 	}, "sq-poller", sOptions...)
 	s.statusChan = s.proc.Start()
+
+	matchOutput := regexp.MustCompile(`\bsuzieq.poller.worker.writers.logging\b`)
 
 	// log STDOUT and STDERR lines streaming from Cmd
 	doneChan := make(chan struct{})
@@ -98,7 +129,12 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 					s.proc.Stdout = nil
 					continue
 				}
-				s.logger.Info("suzieq stdout", zap.String("log", line))
+				if matchOutput.MatchString(line) {
+					_, output, _ := strings.Cut(line, "{")
+					s.proccessDiscovery(output)
+				} else {
+					s.logger.Info("suzieq stdout", zap.String("log", line))
+				}
 			case line, open := <-s.proc.Stderr:
 				if !open {
 					s.proc.Stderr = nil
@@ -130,6 +166,26 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 	s.logger.Info("suzieq process started", zap.Int("pid", status.PID))
 
 	return nil
+}
+
+func (s *suzieqBackend) proccessDiscovery(data string) {
+	discoveryData := []byte(s.returnPrefix + data)
+	var jsonData map[string]map[string]interface{}
+	if err := json.Unmarshal(discoveryData, &jsonData); err != nil {
+		s.logger.Error("process suzieq output error", zap.Error(err))
+		return
+	}
+
+	if jsonData[s.policyName]["device"] != nil {
+		s.logger.Info(string(discoveryData))
+		s.scrapper <- discoveryData
+		return
+	}
+
+	if jsonData[s.policyName]["sqPoller"] != nil {
+		//do logic
+		return
+	}
 }
 
 func (s *suzieqBackend) Stop(ctx context.Context) error {
