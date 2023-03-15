@@ -1,4 +1,4 @@
-name: diode-agent
+name: diode-agent-main
 
 on:
   workflow_dispatch:
