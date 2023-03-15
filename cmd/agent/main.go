@@ -33,15 +33,16 @@ func Run(cmd *cobra.Command, args []string) {
 
 	// configuration
 	var config config.Config
+
+	config.DiodeAgent.DiodeConfig.Debug = Debug
+	config.DiodeAgent.DiodeConfig.OutputType = OutputType
+	config.DiodeAgent.DiodeConfig.OutputPath = OutputPath
+
 	err := viper.Unmarshal(&config)
 	if err != nil {
 		cobra.CheckErr(fmt.Errorf("agent start up error (config): %w", err))
 		os.Exit(1)
 	}
-
-	config.DiodeAgent.DiodeConfig.Debug = Debug
-	config.DiodeAgent.DiodeConfig.OutputType = OutputType
-	config.DiodeAgent.DiodeConfig.OutputPath = OutputPath
 
 	// logger
 	var logger *zap.Logger
@@ -113,6 +114,8 @@ func mergeOrError(path string) {
 
 	// note: viper seems to require a default (or a BindEnv) to be overridden by environment variables
 	v.SetDefault("diode.config.debug", false)
+	v.SetDefault("diode.config.output_type", "file")
+	v.SetDefault("diode.config.output_path", "")
 
 	if len(path) > 0 {
 		cobra.CheckErr(v.ReadInConfig())

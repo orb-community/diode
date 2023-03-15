@@ -40,7 +40,8 @@ func New(logger *zap.Logger, c config.Config) (Scrapper, error) {
 			return nil, errors.New("output path '" + c.DiodeAgent.DiodeConfig.OutputPath + "' does not exist")
 		}
 	}
-	return &scrapperImpl{logger: logger, outputPath: c.DiodeAgent.DiodeConfig.OutputPath, channel: make(chan []byte)}, nil
+	return &scrapperImpl{logger: logger, outputType: c.DiodeAgent.DiodeConfig.OutputType,
+		outputPath: c.DiodeAgent.DiodeConfig.OutputPath, channel: make(chan []byte)}, nil
 }
 
 func (s *scrapperImpl) GetChannel() chan []byte {
@@ -65,7 +66,7 @@ func (s *scrapperImpl) scrapeToFile() error {
 		case data := <-s.channel:
 			json.Unmarshal(data, &jsonData)
 			for policy := range jsonData {
-				path := s.outputPath + "/" + policy + "_" + strconv.FormatInt(time.Now().UnixNano(), 2)
+				path := s.outputPath + "/" + policy + "_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 				if err := os.WriteFile(path, data, 0644); err != nil {
 					s.logger.Error("fail to generate output file for policy "+policy, zap.Error(err))
 				}
