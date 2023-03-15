@@ -5,11 +5,13 @@ COPY go.mod .
 RUN go mod tidy
 COPY . .
 RUN apk update && apk add make build-base git
-RUN mkdir /tmp/build && CGO_ENABLED=1 make agent_bin && mv build/diode-agent /tmp/build/diode-agent
+RUN mkdir /tmp/build && CGO_ENABLED=0 make agent_bin && mv build/diode-agent /tmp/build/diode-agent
 
 FROM python:3.8.16-slim-buster
 
 WORKDIR /
+
+USER root
 
 RUN /usr/local/bin/python -m pip install --upgrade pip && pip install suzieq==0.20.1
 
@@ -24,5 +26,8 @@ RUN SQPATH=$(pip show suzieq |  sed -n 's/Location: \(.*\)/\1/p') \
 && rm -rf /tmp/agent/
 
 COPY --from=builder /tmp/build/diode-agent /usr/local/bin/diode-agent
+COPY --from=builder /go/src/github.com/orb-community/diode/agent/docker/run-agent.sh /run-agent.sh
 
-ENTRYPOINT [ "bash" ]
+RUN chmod a+x /run-agent.sh
+
+ENTRYPOINT ["/run-agent.sh"]
