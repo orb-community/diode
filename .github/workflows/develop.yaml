@@ -16,10 +16,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: 1.19
 
@@ -34,10 +34,12 @@ jobs:
         if: ${{ env.BRANCH_NAME == 'main' || github.event.client_payload.branch_name == 'main' }}
         run: |
           echo "REF_TAG=latest" >> $GITHUB_ENV
+
       - name: Generate ref tag (develop)
         if: ${{ env.BRANCH_NAME == 'develop' || github.event.client_payload.branch_name == 'develop' }}
         run: |
           echo "REF_TAG=develop" >> $GITHUB_ENV
+
       - name: Debug ref tag
         run: echo ${{ env.REF_TAG }}
 
@@ -45,6 +47,7 @@ jobs:
         if: ${{ env.BRANCH_NAME == 'develop' || github.event.client_payload.branch_name == 'develop'}}
         run: |
           echo "`cat ${{github.workspace}}/VERSION`-${{ env.REF_TAG }}" > VERSION
+
       - name: Build orb agent (go build only)
         run: make agent_bin
 
@@ -53,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Get branch name
         shell: bash
@@ -74,9 +77,11 @@ jobs:
         if: ${{ env.BRANCH_NAME == 'develop' || github.event.client_payload.branch_name == 'develop' }}
         run: |
           echo "`cat ${{github.workspace}}/VERSION`-${{ env.REF_TAG }}" > VERSION
+
       - name: Get VERSION
         run: |
           echo "VERSION=`cat ${{github.workspace}}/VERSION`" >> $GITHUB_ENV
+
       - name: Debug version
         run: echo ${{ env.VERSION }}
 
