@@ -11,6 +11,8 @@ FROM python:3.8.16-slim-buster
 
 WORKDIR /
 
+USER root
+
 RUN /usr/local/bin/python -m pip install --upgrade pip && pip install suzieq==0.20.1
 
 COPY ./agent/ /tmp/agent/
@@ -24,8 +26,8 @@ RUN SQPATH=$(pip show suzieq |  sed -n 's/Location: \(.*\)/\1/p') \
 && rm -rf /tmp/agent/
 
 COPY --from=builder /tmp/build/diode-agent /usr/local/bin/diode-agent
-COPY --from=builder /go/src/github.com/orb-community/diode/agent/docker/run-agent.sh /usr/local/bin/run-agent.sh
+COPY --from=builder /go/src/github.com/orb-community/diode/agent/docker/run-agent.sh /run-agent.sh
 
-RUN chmod a+x /usr/local/bin/run-agent.sh
+RUN chmod a+x /run-agent.sh
 
-ENTRYPOINT [ "/bin/bash","/usr/local/bin/run-agent.sh" ]
+ENTRYPOINT ["run-agent.sh"]
