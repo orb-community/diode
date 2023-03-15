@@ -30,7 +30,7 @@ type State struct {
 }
 
 type Backend interface {
-	Configure(*zap.Logger, map[string]string) error
+	Configure(*zap.Logger, string, chan []byte, map[string]interface{}) error
 	Version() (string, error)
 	Start(ctx context.Context, cancelFunc context.CancelFunc) error
 	Stop(ctx context.Context) error

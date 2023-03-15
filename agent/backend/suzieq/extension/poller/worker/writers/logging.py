@@ -21,8 +21,10 @@ class LoggingOutputWorker(OutputWorker):
         """
         if not data["records"]:
             return
-
+        ret_val={data["topic"]:[]} 
         for record in data["records"]:
-            logger.warning(f'topic: {data["topic"]}, record: {record}')
+            ret_val[data["topic"]].append(record)
+
+        logger.warning(f'{ret_val}')
 
 
