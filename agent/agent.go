@@ -90,7 +90,9 @@ func (a *diodeAgent) Start(ctx context.Context, cancelFunc context.CancelFunc) e
 
 	agentCtx := context.WithValue(ctx, "routine", "agentRoutine")
 	a.cancelFunction = cancelFunc
-	if err := a.scrapper.Start(); err != nil {
+
+	scrapperContext := context.WithValue(agentCtx, "routine", "scrapperRoutine")
+	if err := a.scrapper.Start(context.WithCancel(scrapperContext)); err != nil {
 		return err
 	}
 	a.logger.Info("agent started", zap.Any("routine", agentCtx.Value("routine")))
@@ -102,6 +104,7 @@ func (a *diodeAgent) Start(ctx context.Context, cancelFunc context.CancelFunc) e
 }
 
 func (a *diodeAgent) Stop(ctx context.Context) {
+	a.logger.Info("routine call for stop agent", zap.Any("routine", ctx.Value("routine")))
 	for name, b := range a.backends {
 		if state, _, _ := b.GetRunningStatus(); state == backend.Running {
 			a.logger.Debug("stopping backend", zap.String("backend", name))
@@ -110,7 +113,8 @@ func (a *diodeAgent) Stop(ctx context.Context) {
 			}
 		}
 	}
-	a.scrapper.Stop()
+	a.scrapper.Stop(ctx)
+	defer a.cancelFunction()
 }
 
 func (a *diodeAgent) RestartBackend(ctx context.Context, name string, reason string) error {
