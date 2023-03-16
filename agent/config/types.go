@@ -14,6 +14,7 @@ type DiodeConfig struct {
 	Debug      bool   `mapstructure:"debug"`
 	OutputType string `mapstructure:"output_type"`
 	OutputPath string `mapstructure:"output_path"`
+	OutputAuth string `mapstructure:"output_auth"`
 }
 
 type DiodeAgent struct {

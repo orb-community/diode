@@ -118,6 +118,7 @@ func mergeOrError(path string) {
 	v.SetDefault("diode.config.debug", false)
 	v.SetDefault("diode.config.output_type", "file")
 	v.SetDefault("diode.config.output_path", "")
+	v.SetDefault("diode.config.output_auth", "")
 
 	if len(path) > 0 {
 		cobra.CheckErr(v.ReadInConfig())
