@@ -78,15 +78,17 @@ func Run(cmd *cobra.Command, args []string) {
 	go func() {
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-		select {
-		case <-sigs:
-			logger.Warn("stop signal received stopping agent")
-			a.Stop(rootCtx)
-			cancelFunc()
-		case <-rootCtx.Done():
-			logger.Warn("mainRoutine context cancelled")
-			done <- true
-			return
+		for {
+			select {
+			case <-sigs:
+				logger.Warn("stop signal received stopping agent")
+				a.Stop(rootCtx)
+				cancelFunc()
+			case <-rootCtx.Done():
+				logger.Warn("mainRoutine context cancelled")
+				done <- true
+				return
+			}
 		}
 	}()
 

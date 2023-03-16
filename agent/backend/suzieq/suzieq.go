@@ -200,6 +200,7 @@ func (s *suzieqBackend) Stop(ctx context.Context) error {
 	finalStatus := <-s.statusChan
 	if err != nil {
 		s.logger.Error("suzieq shutdown error", zap.Error(err))
+		return err
 	}
 	s.logger.Info("suzieq process stopped", zap.Int("pid", finalStatus.PID), zap.Int("exit_code", finalStatus.Exit))
 	return nil

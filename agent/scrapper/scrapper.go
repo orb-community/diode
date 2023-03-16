@@ -5,6 +5,7 @@
 package scrapper
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -22,8 +23,8 @@ const (
 
 type Scrapper interface {
 	GetChannel() chan []byte
-	Start() error
-	Stop()
+	Start(ctx context.Context, cancelFunc context.CancelFunc) error
+	Stop(ctx context.Context)
 }
 
 type scrapperImpl struct {
@@ -31,7 +32,8 @@ type scrapperImpl struct {
 	outputPath string
 	outputType string
 	channel    chan []byte
-	quit       chan bool
+	cancelFunc context.CancelFunc
+	ctx        context.Context
 }
 
 var _ Scrapper = (*scrapperImpl)(nil)
@@ -43,43 +45,49 @@ func New(logger *zap.Logger, c config.Config) (Scrapper, error) {
 		}
 	}
 	return &scrapperImpl{logger: logger, outputType: c.DiodeAgent.DiodeConfig.OutputType,
-		outputPath: c.DiodeAgent.DiodeConfig.OutputPath, channel: make(chan []byte),
-		quit: make(chan bool)}, nil
+		outputPath: c.DiodeAgent.DiodeConfig.OutputPath, channel: make(chan []byte)}, nil
 }
 
 func (s *scrapperImpl) GetChannel() chan []byte {
 	return s.channel
 }
 
-func (s *scrapperImpl) Start() error {
+func (s *scrapperImpl) Start(ctx context.Context, cancelFunc context.CancelFunc) error {
+	s.cancelFunc = cancelFunc
+	s.ctx = ctx
 	switch o := s.outputType; o {
 	case File:
 		return s.scrapeToFile()
 	case Otlp:
 		return errors.New("OTLP not implemented yet")
 	default:
-		return errors.New(o + " is a invalid output type")
+		return errors.New(s.outputType + " is a invalid output type")
 	}
 }
 
-func (s *scrapperImpl) Stop() {
-	s.quit <- true
+func (s *scrapperImpl) Stop(ctx context.Context) {
+	s.logger.Info("routine call to stop scrapper", zap.Any("routine", ctx.Value("routine")))
+	defer s.cancelFunc()
 }
 
 func (s *scrapperImpl) scrapeToFile() error {
 	go func() {
 		var jsonData map[string]interface{}
-		select {
-		case data := <-s.channel:
-			json.Unmarshal(data, &jsonData)
-			for policy := range jsonData {
-				path := s.outputPath + "/" + policy + "_" + strconv.FormatInt(time.Now().UnixNano(), 10)
-				if err := os.WriteFile(path, data, 0644); err != nil {
-					s.logger.Error("fail to generate output file for policy "+policy, zap.Error(err))
+		for {
+			select {
+			case data := <-s.channel:
+				json.Unmarshal(data, &jsonData)
+				for policy := range jsonData {
+					path := s.outputPath + "/" + policy + "_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+					if err := os.WriteFile(path, data, 0644); err != nil {
+						s.logger.Error("fail to generate output file for policy "+policy, zap.Error(err))
+					}
 				}
+			case <-s.ctx.Done():
+				close(s.channel)
+				s.logger.Info("scrapper context cancelled")
+				return
 			}
-		case <-s.quit:
-			return
 		}
 	}()
 	return nil
