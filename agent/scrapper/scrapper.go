@@ -23,6 +23,7 @@ const (
 type Scrapper interface {
 	GetChannel() chan []byte
 	Start() error
+	Stop()
 }
 
 type scrapperImpl struct {
@@ -30,6 +31,7 @@ type scrapperImpl struct {
 	outputPath string
 	outputType string
 	channel    chan []byte
+	quit       chan bool
 }
 
 var _ Scrapper = (*scrapperImpl)(nil)
@@ -41,7 +43,8 @@ func New(logger *zap.Logger, c config.Config) (Scrapper, error) {
 		}
 	}
 	return &scrapperImpl{logger: logger, outputType: c.DiodeAgent.DiodeConfig.OutputType,
-		outputPath: c.DiodeAgent.DiodeConfig.OutputPath, channel: make(chan []byte)}, nil
+		outputPath: c.DiodeAgent.DiodeConfig.OutputPath, channel: make(chan []byte),
+		quit: make(chan bool)}, nil
 }
 
 func (s *scrapperImpl) GetChannel() chan []byte {
@@ -55,8 +58,12 @@ func (s *scrapperImpl) Start() error {
 	case Otlp:
 		return errors.New("OTLP not implemented yet")
 	default:
-		return errors.New(o + " is invalid output type")
+		return errors.New(o + " is a invalid output type")
 	}
+}
+
+func (s *scrapperImpl) Stop() {
+	s.quit <- true
 }
 
 func (s *scrapperImpl) scrapeToFile() error {
@@ -71,6 +78,8 @@ func (s *scrapperImpl) scrapeToFile() error {
 					s.logger.Error("fail to generate output file for policy "+policy, zap.Error(err))
 				}
 			}
+		case <-s.quit:
+			return
 		}
 	}()
 	return nil

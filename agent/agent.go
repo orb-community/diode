@@ -102,7 +102,15 @@ func (a *diodeAgent) Start(ctx context.Context, cancelFunc context.CancelFunc) e
 }
 
 func (a *diodeAgent) Stop(ctx context.Context) {
-
+	for name, b := range a.backends {
+		if state, _, _ := b.GetRunningStatus(); state == backend.Running {
+			a.logger.Debug("stopping backend", zap.String("backend", name))
+			if err := b.Stop(ctx); err != nil {
+				a.logger.Error("error while stopping the backend", zap.String("backend", name))
+			}
+		}
+	}
+	a.scrapper.Stop()
 }
 
 func (a *diodeAgent) RestartBackend(ctx context.Context, name string, reason string) error {

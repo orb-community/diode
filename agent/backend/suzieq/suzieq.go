@@ -181,16 +181,16 @@ func (s *suzieqBackend) proccessDiscovery(data string) {
 		s.scrapper <- discoveryData
 	}
 
-	// if jsonData[s.policyName]["sqPoller"] != nil {
-	// 	pollerData := jsonData[s.policyName]["sqPoller"].([]map[string]interface{})
-	// 	for _, val := range pollerData {
-	// 		if val["service"] != nil && val["service"].(string) == "device" {
-	// 			s.logger.Info(string(discoveryData))
-	// 			s.scrapper <- discoveryData
-	// 			return
-	// 		}
-	// 	}
-	// }
+	if jsonData[s.policyName]["sqPoller"] != nil {
+		pollerData := jsonData[s.policyName]["sqPoller"].([]interface{})
+		for _, pollerField := range pollerData {
+			for k, v := range pollerField.(map[string]interface{}) {
+				if k == "service" && v.(string) == "device" {
+					s.scrapper <- discoveryData
+				}
+			}
+		}
+	}
 }
 
 func (s *suzieqBackend) Stop(ctx context.Context) error {
