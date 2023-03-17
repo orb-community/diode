@@ -81,13 +81,37 @@ func (s *scrapperImpl) Stop(ctx context.Context) {
 	defer s.cancelFunc()
 }
 
+type tempNetboxStruct struct {
+	ObjType string      `json:"object_type"`
+	Engine  string      `json:"engine"`
+	Data    interface{} `json:"data"`
+}
+
+func (s *scrapperImpl) temporaryMatchNetbox(data []byte) []byte {
+	var jsonData map[string]map[string]interface{}
+	var returnData tempNetboxStruct
+	returnData.ObjType = "dcim.device"
+	json.Unmarshal(data, &jsonData)
+	for _, policy := range jsonData {
+		for k, v := range policy {
+			if k == "backend" {
+				returnData.Engine = v.(string)
+			} else if k == "device" {
+				returnData.Data = v.([]interface{})[0]
+			}
+		}
+	}
+	b, _ := json.Marshal(returnData)
+	return b
+}
+
 func (s *scrapperImpl) scrapeToHttp() error {
 	go func() {
 		for {
 			select {
 			case data := <-s.channel:
 				client := &http.Client{}
-				req, err := http.NewRequest("POST", s.outputPath, bytes.NewBuffer(data))
+				req, err := http.NewRequest("POST", s.outputPath, bytes.NewBuffer(s.temporaryMatchNetbox(data)))
 				if err != nil {
 					s.logger.Error("scrapper: fail to create http request", zap.Error(err))
 					continue
@@ -103,6 +127,7 @@ func (s *scrapperImpl) scrapeToHttp() error {
 					continue
 				}
 				defer res.Body.Close()
+				s.logger.Info("scrapper http response status: " + res.Status)
 			case <-s.ctx.Done():
 				close(s.channel)
 				s.logger.Info("scrapper context cancelled")
