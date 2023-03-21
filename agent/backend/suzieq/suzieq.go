@@ -20,6 +20,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var Tables = [...]string{"device", "interfaces", "inventory", "vlan"}
+
+const PollerTable = "sqPoller"
+
 type suzieqBackend struct {
 	logger        *zap.Logger
 	policyName    string
@@ -102,6 +106,8 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 		"-o",
 		"logging",
 		"--no-coalescer",
+		"--run-once",
+		"update",
 	}
 
 	s.logger.Info("suzieq startup", zap.Strings("arguments", sOptions))
@@ -115,14 +121,8 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 	matchOutput := regexp.MustCompile(`\bsuzieq.poller.worker.writers.logging\b`)
 
 	// log STDOUT and STDERR lines streaming from Cmd
-	doneChan := make(chan struct{})
 	go func() {
-		defer func() {
-			if doneChan != nil {
-				close(doneChan)
-			}
-		}()
-		for s.proc.Stdout != nil || s.proc.Stderr != nil {
+		for s.proc.Stdout != nil || s.proc.Stderr != nil || s.proc.Done() != nil {
 			select {
 			case line, open := <-s.proc.Stdout:
 				if !open {
@@ -141,6 +141,9 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 					continue
 				}
 				s.logger.Info("suzieq stderr", zap.String("log", line))
+			case <-s.proc.Done():
+				s.Stop(ctx)
+				return
 			}
 		}
 	}()
@@ -176,17 +179,23 @@ func (s *suzieqBackend) proccessDiscovery(data string) {
 		return
 	}
 
-	if jsonData[s.policyName]["device"] != nil {
-		s.logger.Info("suzieq device found")
-		s.scrapper <- discoveryData
-	}
-
-	if jsonData[s.policyName]["sqPoller"] != nil {
-		pollerData := jsonData[s.policyName]["sqPoller"].([]interface{})
-		for _, pollerField := range pollerData {
-			for k, v := range pollerField.(map[string]interface{}) {
-				if k == "service" && v.(string) == "device" {
-					s.scrapper <- discoveryData
+	for k, v := range jsonData[s.policyName] {
+		for _, d := range Tables {
+			if k == d {
+				s.scrapper <- discoveryData
+			}
+		}
+		if k == PollerTable {
+			pollerData := v.([]interface{})
+			for _, pollerField := range pollerData {
+				for k, i := range pollerField.(map[string]interface{}) {
+					if k == "service" {
+						for _, d := range Tables {
+							if i.(string) == d {
+								s.scrapper <- discoveryData
+							}
+						}
+					}
 				}
 			}
 		}
