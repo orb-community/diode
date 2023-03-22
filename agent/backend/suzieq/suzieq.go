@@ -106,8 +106,6 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 		"-o",
 		"logging",
 		"--no-coalescer",
-		"--run-once",
-		"update",
 	}
 
 	s.logger.Info("suzieq startup", zap.Strings("arguments", sOptions))
@@ -186,17 +184,25 @@ func (s *suzieqBackend) proccessDiscovery(data string) {
 			}
 		}
 		if k == PollerTable {
+			status := ""
+			service := ""
 			pollerData := v.([]interface{})
 			for _, pollerField := range pollerData {
 				for k, i := range pollerField.(map[string]interface{}) {
 					if k == "service" {
 						for _, d := range Tables {
 							if i.(string) == d {
-								s.scrapper <- discoveryData
+								service = d
+								break
 							}
 						}
+					} else if k == "status" {
+						status = fmt.Sprintf("%v", i)
 					}
 				}
+			}
+			if service != "" && status != "0" {
+				s.logger.Error("suzieq poller for service '" + service + "' failed with status: " + status)
 			}
 		}
 	}
