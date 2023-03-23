@@ -10,12 +10,17 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/orb-community/diode/agent/config"
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/config/configtls"
+	"go.opentelemetry.io/collector/exporter"
+	"go.opentelemetry.io/collector/exporter/otlpexporter"
+	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -48,10 +53,6 @@ func New(logger *zap.Logger, c config.Config) (Scrapper, error) {
 		if _, err := os.Stat(c.DiodeAgent.DiodeConfig.OutputPath); os.IsNotExist(err) {
 			return nil, errors.New("output path '" + c.DiodeAgent.DiodeConfig.OutputPath + "' does not exist")
 		}
-	} else if c.DiodeAgent.DiodeConfig.OutputType == Http {
-		if _, err := url.ParseRequestURI(c.DiodeAgent.DiodeConfig.OutputPath); err != nil {
-			return nil, err
-		}
 	}
 	return &scrapperImpl{logger: logger, outputType: c.DiodeAgent.DiodeConfig.OutputType, outputPath: c.DiodeAgent.DiodeConfig.OutputPath,
 		outputAuth: c.DiodeAgent.DiodeConfig.OutputAuth, channel: make(chan []byte)}, nil
@@ -70,7 +71,7 @@ func (s *scrapperImpl) Start(ctx context.Context, cancelFunc context.CancelFunc)
 	case Http:
 		return s.scrapeToHttp()
 	case Otlp:
-		return errors.New("OTLP not implemented yet")
+		return s.scrapeToOtlp()
 	default:
 		return errors.New(s.outputType + " is a invalid output type")
 	}
@@ -113,7 +114,7 @@ func (s *scrapperImpl) scrapeToHttp() error {
 				client := &http.Client{}
 				req, err := http.NewRequest("POST", s.outputPath, bytes.NewBuffer(s.temporaryMatchNetbox(data)))
 				if err != nil {
-					s.logger.Error("scrapper: fail to create http request", zap.Error(err))
+					s.logger.Error("scrapper - fail to create http request", zap.Error(err))
 					continue
 				}
 				req.Header.Add("Content-Type", "application/json")
@@ -123,11 +124,11 @@ func (s *scrapperImpl) scrapeToHttp() error {
 
 				res, err := client.Do(req)
 				if err != nil {
-					s.logger.Error("scrapper: fail to create http request", zap.Error(err))
+					s.logger.Error("scrapper - fail to create http request", zap.Error(err))
 					continue
 				}
 				defer res.Body.Close()
-				s.logger.Info("scrapper http response status: " + res.Status)
+				s.logger.Info("scrapper - http response status: " + res.Status)
 			case <-s.ctx.Done():
 				close(s.channel)
 				s.logger.Info("scrapper context cancelled")
@@ -144,13 +145,69 @@ func (s *scrapperImpl) scrapeToFile() error {
 		for {
 			select {
 			case data := <-s.channel:
-				json.Unmarshal(data, &jsonData)
+				err := json.Unmarshal(data, &jsonData)
+				if err != nil {
+					s.logger.Error("scrapper - fail to unmarshal json", zap.Error(err))
+					break
+				}
 				for policy := range jsonData {
 					path := s.outputPath + "/" + policy + "_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 					if err := os.WriteFile(path, data, 0644); err != nil {
-						s.logger.Error("fail to generate output file for policy "+policy, zap.Error(err))
+						s.logger.Error("scrapper - fail to generate output file for policy "+policy, zap.Error(err))
+						break
 					}
 				}
+			case <-s.ctx.Done():
+				close(s.channel)
+				s.logger.Info("scrapper context cancelled")
+				return
+			}
+		}
+	}()
+	return nil
+}
+
+func (s *scrapperImpl) scrapeToOtlp() error {
+	factory := otlpexporter.NewFactory()
+	factory.CreateDefaultConfig()
+	set := exporter.CreateSettings{
+		ID: component.NewID("test"),
+		TelemetrySettings: component.TelemetrySettings{
+			Logger:         s.logger,
+			TracerProvider: trace.NewNoopTracerProvider(),
+		},
+	}
+	cfg := factory.CreateDefaultConfig().(*otlpexporter.Config)
+	cfg.GRPCClientSettings.Endpoint = s.outputPath
+	cfg.GRPCClientSettings.TLSSetting = configtls.TLSClientSetting{
+		Insecure: true,
+	}
+	lexporter, err := factory.CreateLogsExporter(s.ctx, set, cfg)
+	if err != nil {
+		s.logger.Error("scrapper - fail to create log exporter", zap.Error(err))
+		return err
+	}
+	err = lexporter.Start(s.ctx, nil)
+	if err != nil {
+		s.logger.Error("scrapper - fail to start log exporter", zap.Error(err))
+		return err
+	}
+	logs := plog.NewLogs()
+	res := logs.ResourceLogs().AppendEmpty()
+	scope := res.ScopeLogs().AppendEmpty()
+	record := scope.LogRecords().AppendEmpty()
+	record.SetSeverityNumber(plog.SeverityNumberTrace)
+
+	go func() {
+		for {
+			select {
+			case data := <-s.channel:
+				err = record.Body().FromRaw(data)
+				if err != nil {
+					s.logger.Error("scrapper - fail to add log body", zap.Error(err))
+					break
+				}
+				lexporter.ConsumeLogs(s.ctx, logs)
 			case <-s.ctx.Done():
 				close(s.channel)
 				s.logger.Info("scrapper context cancelled")
