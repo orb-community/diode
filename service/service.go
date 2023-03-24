@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/orb-community/diode/service/config"
+	"github.com/orb-community/diode/service/nb_pusher"
 	"github.com/orb-community/diode/service/otlp"
 	"go.uber.org/zap"
 )
@@ -20,25 +22,35 @@ type Service interface {
 
 type DiodeService struct {
 	logger             *zap.Logger
+	config             config.Config
 	channel            chan []byte
 	otlpRecv           otlp.Otlp
+	pusher             nb_pusher.Pusher
 	cancelAsyncContext context.CancelFunc
 	asyncContext       context.Context
 }
 
 var _ Service = (*DiodeService)(nil)
 
-func New(logger *zap.Logger) Service {
+func New(logger *zap.Logger, config config.Config) Service {
 	return &DiodeService{
 		logger:  logger,
+		config:  config,
 		channel: make(chan []byte),
 	}
 }
 
 func (ds *DiodeService) Start() error {
 	ds.asyncContext, ds.cancelAsyncContext = context.WithCancel(context.WithValue(context.Background(), "routine", "async"))
-	ds.otlpRecv = otlp.New(ds.asyncContext, ds.logger, ds.channel)
-	err := ds.otlpRecv.StartOtlpReceiver()
+
+	ds.pusher = nb_pusher.New(ds.asyncContext, ds.logger, &ds.config)
+	err := ds.pusher.Start()
+	if err != nil {
+		return err
+	}
+
+	ds.otlpRecv = otlp.New(ds.asyncContext, ds.logger, &ds.config, ds.channel)
+	err = ds.otlpRecv.Start()
 	if err != nil {
 		return err
 	}
@@ -69,5 +81,6 @@ func (ds *DiodeService) Start() error {
 }
 
 func (ds *DiodeService) Stop() error {
+	ds.otlpRecv.Stop()
 	return nil
 }

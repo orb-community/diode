@@ -19,18 +19,16 @@ import (
 )
 
 const (
-	svcName   = "diode"
 	envPrefix = "diode_service"
-	httpPort  = "8201"
 )
 
 func main() {
-	svcCfg := config.LoadBaseServiceConfig(envPrefix, httpPort)
+	svcCfg := config.LoadConfig(envPrefix)
 
 	// main logger
 	var logger *zap.Logger
 	atomicLevel := zap.NewAtomicLevel()
-	switch strings.ToLower(svcCfg.LogLevel) {
+	switch strings.ToLower(svcCfg.Base.LogLevel) {
 	case "debug":
 		atomicLevel.SetLevel(zap.DebugLevel)
 	case "warn":
@@ -55,7 +53,7 @@ func main() {
 		}
 	}(logger) // flushes buffer, if any
 
-	svc := service.New(logger)
+	svc := service.New(logger, svcCfg)
 	defer func(svc service.Service) {
 		err := svc.Stop()
 		if err != nil {
