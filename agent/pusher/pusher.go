@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-package scrapper
+package pusher
 
 import (
 	"bytes"
@@ -30,13 +30,13 @@ const (
 	Http = "http"
 )
 
-type Scrapper interface {
+type Pusher interface {
 	GetChannel() chan []byte
 	Start(ctx context.Context, cancelFunc context.CancelFunc) error
 	Stop(ctx context.Context)
 }
 
-type scrapperImpl struct {
+type pusherImpl struct {
 	logger     *zap.Logger
 	outputPath string
 	outputType string
@@ -46,23 +46,23 @@ type scrapperImpl struct {
 	ctx        context.Context
 }
 
-var _ Scrapper = (*scrapperImpl)(nil)
+var _ Pusher = (*pusherImpl)(nil)
 
-func New(logger *zap.Logger, c config.Config) (Scrapper, error) {
+func New(logger *zap.Logger, c config.Config) (Pusher, error) {
 	if c.DiodeAgent.DiodeConfig.OutputType == File {
 		if _, err := os.Stat(c.DiodeAgent.DiodeConfig.OutputPath); os.IsNotExist(err) {
 			return nil, errors.New("output path '" + c.DiodeAgent.DiodeConfig.OutputPath + "' does not exist")
 		}
 	}
-	return &scrapperImpl{logger: logger, outputType: c.DiodeAgent.DiodeConfig.OutputType, outputPath: c.DiodeAgent.DiodeConfig.OutputPath,
+	return &pusherImpl{logger: logger, outputType: c.DiodeAgent.DiodeConfig.OutputType, outputPath: c.DiodeAgent.DiodeConfig.OutputPath,
 		outputAuth: c.DiodeAgent.DiodeConfig.OutputAuth, channel: make(chan []byte)}, nil
 }
 
-func (s *scrapperImpl) GetChannel() chan []byte {
+func (s *pusherImpl) GetChannel() chan []byte {
 	return s.channel
 }
 
-func (s *scrapperImpl) Start(ctx context.Context, cancelFunc context.CancelFunc) error {
+func (s *pusherImpl) Start(ctx context.Context, cancelFunc context.CancelFunc) error {
 	s.cancelFunc = cancelFunc
 	s.ctx = ctx
 	switch o := s.outputType; o {
@@ -77,8 +77,8 @@ func (s *scrapperImpl) Start(ctx context.Context, cancelFunc context.CancelFunc)
 	}
 }
 
-func (s *scrapperImpl) Stop(ctx context.Context) {
-	s.logger.Info("routine call to stop scrapper", zap.Any("routine", ctx.Value("routine")))
+func (s *pusherImpl) Stop(ctx context.Context) {
+	s.logger.Info("routine call to stop pusher", zap.Any("routine", ctx.Value("routine")))
 	defer s.cancelFunc()
 }
 
@@ -88,7 +88,7 @@ type tempNetboxStruct struct {
 	Data    interface{} `json:"data"`
 }
 
-func (s *scrapperImpl) temporaryMatchNetbox(data []byte) []byte {
+func (s *pusherImpl) temporaryMatchNetbox(data []byte) []byte {
 	var jsonData map[string]map[string]interface{}
 	var returnData tempNetboxStruct
 	returnData.ObjType = "dcim.device"
@@ -106,7 +106,7 @@ func (s *scrapperImpl) temporaryMatchNetbox(data []byte) []byte {
 	return b
 }
 
-func (s *scrapperImpl) scrapeToHttp() error {
+func (s *pusherImpl) scrapeToHttp() error {
 	go func() {
 		for {
 			select {
@@ -114,7 +114,7 @@ func (s *scrapperImpl) scrapeToHttp() error {
 				client := &http.Client{}
 				req, err := http.NewRequest("POST", s.outputPath, bytes.NewBuffer(s.temporaryMatchNetbox(data)))
 				if err != nil {
-					s.logger.Error("scrapper - fail to create http request", zap.Error(err))
+					s.logger.Error("pusher - fail to create http request", zap.Error(err))
 					continue
 				}
 				req.Header.Add("Content-Type", "application/json")
@@ -124,14 +124,14 @@ func (s *scrapperImpl) scrapeToHttp() error {
 
 				res, err := client.Do(req)
 				if err != nil {
-					s.logger.Error("scrapper - fail to create http request", zap.Error(err))
+					s.logger.Error("pusher - fail to create http request", zap.Error(err))
 					continue
 				}
 				defer res.Body.Close()
-				s.logger.Info("scrapper - http response status: " + res.Status)
+				s.logger.Info("pusher - http response status: " + res.Status)
 			case <-s.ctx.Done():
 				close(s.channel)
-				s.logger.Info("scrapper context cancelled")
+				s.logger.Info("pusher context cancelled")
 				return
 			}
 		}
@@ -139,7 +139,7 @@ func (s *scrapperImpl) scrapeToHttp() error {
 	return nil
 }
 
-func (s *scrapperImpl) scrapeToFile() error {
+func (s *pusherImpl) scrapeToFile() error {
 	go func() {
 		var jsonData map[string]interface{}
 		for {
@@ -147,19 +147,19 @@ func (s *scrapperImpl) scrapeToFile() error {
 			case data := <-s.channel:
 				err := json.Unmarshal(data, &jsonData)
 				if err != nil {
-					s.logger.Error("scrapper - fail to unmarshal json", zap.Error(err))
+					s.logger.Error("pusher - fail to unmarshal json", zap.Error(err))
 					break
 				}
 				for policy := range jsonData {
 					path := s.outputPath + "/" + policy + "_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 					if err := os.WriteFile(path, data, 0644); err != nil {
-						s.logger.Error("scrapper - fail to generate output file for policy "+policy, zap.Error(err))
+						s.logger.Error("pusher - fail to generate output file for policy "+policy, zap.Error(err))
 						break
 					}
 				}
 			case <-s.ctx.Done():
 				close(s.channel)
-				s.logger.Info("scrapper context cancelled")
+				s.logger.Info("pusher context cancelled")
 				return
 			}
 		}
@@ -167,11 +167,10 @@ func (s *scrapperImpl) scrapeToFile() error {
 	return nil
 }
 
-func (s *scrapperImpl) scrapeToOtlp() error {
+func (s *pusherImpl) scrapeToOtlp() error {
 	factory := otlpexporter.NewFactory()
 	factory.CreateDefaultConfig()
 	set := exporter.CreateSettings{
-		ID: component.NewID("test"),
 		TelemetrySettings: component.TelemetrySettings{
 			Logger:         s.logger,
 			TracerProvider: trace.NewNoopTracerProvider(),
@@ -184,12 +183,12 @@ func (s *scrapperImpl) scrapeToOtlp() error {
 	}
 	lexporter, err := factory.CreateLogsExporter(s.ctx, set, cfg)
 	if err != nil {
-		s.logger.Error("scrapper - fail to create log exporter", zap.Error(err))
+		s.logger.Error("pusher - fail to create log exporter", zap.Error(err))
 		return err
 	}
 	err = lexporter.Start(s.ctx, nil)
 	if err != nil {
-		s.logger.Error("scrapper - fail to start log exporter", zap.Error(err))
+		s.logger.Error("pusher - fail to start log exporter", zap.Error(err))
 		return err
 	}
 	logs := plog.NewLogs()
@@ -204,13 +203,13 @@ func (s *scrapperImpl) scrapeToOtlp() error {
 			case data := <-s.channel:
 				err = record.Body().FromRaw(data)
 				if err != nil {
-					s.logger.Error("scrapper - fail to add log body", zap.Error(err))
+					s.logger.Error("pusher - fail to add log body", zap.Error(err))
 					break
 				}
 				lexporter.ConsumeLogs(s.ctx, logs)
 			case <-s.ctx.Done():
 				close(s.channel)
-				s.logger.Info("scrapper context cancelled")
+				s.logger.Info("pusher context cancelled")
 				return
 			}
 		}

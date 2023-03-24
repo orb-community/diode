@@ -12,7 +12,7 @@ import (
 	"github.com/orb-community/diode/agent/backend"
 	"github.com/orb-community/diode/agent/backend/factory"
 	"github.com/orb-community/diode/agent/config"
-	"github.com/orb-community/diode/agent/scrapper"
+	"github.com/orb-community/diode/agent/pusher"
 	"go.uber.org/zap"
 )
 
@@ -33,18 +33,18 @@ type diodeAgent struct {
 	backends       map[string]backend.Backend
 	backendState   map[string]*backend.State
 	cancelFunction context.CancelFunc
-	scrapper       scrapper.Scrapper
+	pusher         pusher.Pusher
 }
 
 var _ Agent = (*diodeAgent)(nil)
 
 func New(logger *zap.Logger, c config.Config) (Agent, error) {
-	var s scrapper.Scrapper
+	var s pusher.Pusher
 	var err error
-	if s, err = scrapper.New(logger, c); err != nil {
+	if s, err = pusher.New(logger, c); err != nil {
 		return nil, err
 	}
-	return &diodeAgent{logger: logger, config: c, scrapper: s}, nil
+	return &diodeAgent{logger: logger, config: c, pusher: s}, nil
 }
 
 func (a *diodeAgent) startPolicies(agentCtx context.Context) error {
@@ -65,7 +65,7 @@ func (a *diodeAgent) startPolicies(agentCtx context.Context) error {
 		if policy.Kind != Kind {
 			return errors.New("invalid policy kind")
 		}
-		if err = be.Configure(a.logger, name, a.scrapper.GetChannel(), policy.Data); err != nil {
+		if err = be.Configure(a.logger, name, a.pusher.GetChannel(), policy.Data); err != nil {
 			return err
 		}
 		backendCtx := context.WithValue(agentCtx, "routine", name)
@@ -91,8 +91,8 @@ func (a *diodeAgent) Start(ctx context.Context, cancelFunc context.CancelFunc) e
 	agentCtx := context.WithValue(ctx, "routine", "agentRoutine")
 	a.cancelFunction = cancelFunc
 
-	scrapperContext := context.WithValue(agentCtx, "routine", "scrapperRoutine")
-	if err := a.scrapper.Start(context.WithCancel(scrapperContext)); err != nil {
+	pusherContext := context.WithValue(agentCtx, "routine", "pusherRoutine")
+	if err := a.pusher.Start(context.WithCancel(pusherContext)); err != nil {
 		return err
 	}
 	a.logger.Info("agent started", zap.Any("routine", agentCtx.Value("routine")))
@@ -113,7 +113,7 @@ func (a *diodeAgent) Stop(ctx context.Context) {
 			}
 		}
 	}
-	a.scrapper.Stop(ctx)
+	a.pusher.Stop(ctx)
 	defer a.cancelFunction()
 }
 

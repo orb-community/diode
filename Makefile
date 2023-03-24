@@ -130,7 +130,6 @@ agent_bin:
 
 agent:
 	docker build --no-cache \
-	  --build-arg PKTVISOR_TAG=$(PKTVISOR_TAG) \
 	  --tag=$(DOCKERHUB_REPO)/$(DOCKER_IMAGE_NAME_PREFIX)-agent:$(REF_TAG) \
 	  --tag=$(DOCKERHUB_REPO)/$(DOCKER_IMAGE_NAME_PREFIX)-agent:$(ORB_VERSION) \
 	  --tag=$(DOCKERHUB_REPO)/$(DOCKER_IMAGE_NAME_PREFIX)-agent:$(ORB_VERSION)-$(COMMIT_HASH) \
@@ -138,13 +137,11 @@ agent:
 
 agent_debug:
 	docker build \
-	  --build-arg PKTVISOR_TAG=$(PKTVISOR_DEBUG_TAG) \
 	  --tag=$(DOCKERHUB_REPO)/$(DOCKER_IMAGE_NAME_PREFIX)-agent:$(DEBUG_REF_TAG) \
 	  -f agent/docker/Dockerfile .
 
 agent_production:
 	docker build \
-	  --build-arg PKTVISOR_TAG=$(PKTVISOR_TAG) \
 	  --tag=$(DOCKERHUB_REPO)/$(DOCKER_IMAGE_NAME_PREFIX)-agent:$(PRODUCTION_AGENT_REF_TAG) \
 	  --tag=$(DOCKERHUB_REPO)/$(DOCKER_IMAGE_NAME_PREFIX)-agent:$(ORB_VERSION) \
 	  --tag=$(DOCKERHUB_REPO)/$(DOCKER_IMAGE_NAME_PREFIX)-agent:$(ORB_VERSION)-$(COMMIT_HASH) \
@@ -152,7 +149,6 @@ agent_production:
 
 agent_debug_production:
 	docker build \
-	  --build-arg PKTVISOR_TAG=$(PKTVISOR_DEBUG_TAG) \
 	  --tag=$(DOCKERHUB_REPO)/$(DOCKER_IMAGE_NAME_PREFIX)-agent:$(PRODUCTION_AGENT_DEBUG_REF_TAG) \
 	  -f agent/docker/Dockerfile .
 

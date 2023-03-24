@@ -31,7 +31,7 @@ type suzieqBackend struct {
 	inventoryPath string
 	proc          *cmd.Cmd
 	statusChan    <-chan cmd.Status
-	scrapper      chan []byte
+	pusher        chan []byte
 	startTime     time.Time
 	cancelFunc    context.CancelFunc
 	ctx           context.Context
@@ -59,7 +59,7 @@ func (s *suzieqBackend) getProcRunningStatus() (backend.RunningStatus, string, e
 	return backend.Running, "", nil
 }
 
-func (s *suzieqBackend) Configure(logger *zap.Logger, name string, scrapper chan []byte, data map[string]interface{}) error {
+func (s *suzieqBackend) Configure(logger *zap.Logger, name string, pusher chan []byte, data map[string]interface{}) error {
 	var prs bool
 	var inventory interface{}
 	if inventory, prs = data["inventory"]; !prs {
@@ -80,7 +80,7 @@ func (s *suzieqBackend) Configure(logger *zap.Logger, name string, scrapper chan
 	s.logger = logger
 	s.policyName = name
 	s.returnPrefix = "{\"" + name + "\":{\"backend\":\"suzieq\", "
-	s.scrapper = scrapper
+	s.pusher = pusher
 
 	return nil
 }
@@ -180,7 +180,7 @@ func (s *suzieqBackend) proccessDiscovery(data string) {
 	for k, v := range jsonData[s.policyName] {
 		for _, d := range Tables {
 			if k == d {
-				s.scrapper <- discoveryData
+				s.pusher <- discoveryData
 			}
 		}
 		if k == PollerTable {
