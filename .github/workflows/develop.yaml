@@ -1,4 +1,4 @@
-name: diode-agent-develop
+name: diode-develop
 
 on:
   workflow_dispatch:
@@ -108,5 +108,5 @@ jobs:
 
       - name: Push agent container
         run: |
-          docker push -a orbcommunity/diode-server
+          docker push -a orbcommunity/diode-service
 
