@@ -10,7 +10,7 @@ on:
 
 jobs:
 
-  build:
+  pre-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -33,7 +33,7 @@ jobs:
 
   package-agent:
     if: ${{ github.event_name != 'pull_request' }} 
-    needs: build
+    needs: [ pre-build ]
     runs-on: ubuntu-latest
 
     steps:
@@ -74,6 +74,7 @@ jobs:
           
   package-service:
     if: ${{ github.event_name != 'pull_request' }} 
+    needs: [ pre-build ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
