@@ -1,10 +1,15 @@
-# diode
+# Diode
+
+## Building diode service docker image:
+
+`SERVICE=service make build_docker`
+
 
 ## Building diode agent docker image:
 
 `make agent`
 
-## Running docker image
+## Running diode agent docker image
 
 ```sh
 docker run -v /usr/local/diode:/opt/diode/ --net=host orbcommunity/diode-agent:develop run -c /opt/diode/config.yaml
