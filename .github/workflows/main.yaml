@@ -1,10 +1,7 @@
-name: diode-agent-main
+name: diode-main
 
 on:
   workflow_dispatch:
-
-  repository_dispatch:
-      types: [build-agent]
 
   pull_request:
     branches: [ main ]
