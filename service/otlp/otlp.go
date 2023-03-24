@@ -7,6 +7,7 @@ package otlp
 import (
 	"context"
 
+	"github.com/orb-community/diode/service/config"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -18,13 +19,14 @@ import (
 )
 
 type Otlp interface {
-	StartOtlpReceiver() error
+	Start() error
+	Stop() error
 }
 
 type DiodeOtlp struct {
-	ctx    context.Context
-	logger *zap.Logger
-
+	ctx      context.Context
+	logger   *zap.Logger
+	config   *config.Config
 	consumer consumer.Logs
 	receiver receiver.Logs
 }
@@ -36,16 +38,16 @@ type DiodeLogConsumer struct {
 
 var _ Otlp = (*DiodeOtlp)(nil)
 
-func New(ctx context.Context, logger *zap.Logger, channel chan []byte) Otlp {
-	return &DiodeOtlp{ctx: ctx, logger: logger, consumer: newLogConsumer(channel)}
+func New(ctx context.Context, logger *zap.Logger, config *config.Config, channel chan []byte) Otlp {
+	return &DiodeOtlp{ctx: ctx, logger: logger, config: config, consumer: newLogConsumer(channel)}
 }
 
-func (d *DiodeOtlp) StartOtlpReceiver() error {
+func (d *DiodeOtlp) Start() error {
 	factory := otlpreceiver.NewFactory()
 	cfg := factory.CreateDefaultConfig().(*otlpreceiver.Config)
 	cfg.HTTP = nil
-	cfg.GRPC.NetAddr.Endpoint = "0.0.0.0:4317"
-	cfg.GRPC.NetAddr.Transport = "tcp"
+	cfg.GRPC.NetAddr.Endpoint = d.config.OtlpReceiver.Endpoint
+	cfg.GRPC.NetAddr.Transport = d.config.OtlpReceiver.Protocol
 	set := receiver.CreateSettings{
 		TelemetrySettings: component.TelemetrySettings{
 			Logger:         d.logger,
@@ -63,6 +65,10 @@ func (d *DiodeOtlp) StartOtlpReceiver() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (d *DiodeOtlp) Stop() error {
 	return nil
 }
 
