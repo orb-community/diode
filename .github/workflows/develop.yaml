@@ -107,4 +107,44 @@ jobs:
       - name: Push agent container
         run: |
           docker push -a orbcommunity/diode-service
+          
+  destroy-diode-service:
+    needs: [ package-service ]
+    name: Destroy diode service
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Destroy environment diode-service
+        if: ${{ needs.check.outputs.networklab1 == 'true' }}
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.DIODELAB_HOST }}
+          username: ${{ secrets.DIODELAB_USERNAME }}
+          key: ${{ secrets.DIODELAB_SSH_KEY }}
+          port: 22
+          script: |
+            cd /storage-docker/diode-service/
+            sudo docker-compose down --rmi
+
+      - uses: actions/checkout@v3
+      - name: Update diode-service host files
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.DIODELAB_HOST }}
+          username: ${{ secrets.DIODELAB_USERNAME }}
+          key: ${{ secrets.NETWORKLAB_SSH_KEY }}
+          port: 22
+          source: "./docker/docker-compose.yml"
+          target: "/storage-docker/diode-service/"
+            
+      - name: Deploy environment diode-service
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.DIODELAB_HOST }}
+          username: ${{ secrets.DIODELAB_USERNAME }}
+          key: ${{ secrets.NETWORKLAB_SSH_KEY }}
+          port: 22
+          script: |
+            cd /storage-docker/diode-service/
+            sudo docker-compose --project-name=diode up -d
 
