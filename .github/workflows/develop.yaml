@@ -3,9 +3,6 @@ name: diode-develop
 on:
   workflow_dispatch:
 
-  repository_dispatch:
-      types: [build-agent]
-
   pull_request:
     branches: [ develop ]
   push:
