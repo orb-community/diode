@@ -1,47 +1,12 @@
-# Original Copyright (c) Mainflux
-# SPDX-License-Identifier: Apache-2.0
+version: '3.7'
 
-# Adapted for Orb project, modifications licensed under MPL v. 2.0:
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-
-version: "3.7"
-
-networks:
-  orb-base-net:
-    driver: bridge
-
-volumes:
-  orb-prometheus-volume:
-  orb-grafana-volume:
-
+# Docker Services
 services:
 
-## common core services ##
-
-  prometheus:
-    image: prom/prometheus:v2.26.0
-    container_name: orb-app-prom
-    restart: on-failure
+  service:
+    image: orbcommunity/diode-service:IMAGE_TAG
     ports:
-      - ${MF_PROMETHEUS_PORT}:${MF_PROMETHEUS_PORT}
-    networks:
-      - orb-base-net
-    volumes:
-      - orb-prometheus-volume:/prometheus
-      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
-
-  grafana:
-    image: grafana/grafana:7.5.5
-    container_name: orb-app-grafana
-    depends_on:
-      - prometheus
-    restart: on-failure
-    ports:
-      - ${MF_PUBLIC_GRAFANA_PORT}:${MF_GRAFANA_PORT}
-    networks:
-      - orb-base-net
-    volumes:
-      - orb-grafana-volume:/var/lib/grafana
-      - ./configs/grafana-defaults.ini:/usr/share/grafana/conf/defaults.ini
+      - "4317:4317"
+    environment:
+      - DIODE_SERVICE_NETBOX_ENDPOINT="NETBOX_API_HOST"
+      - DIODE_SERVICE_NETBOX_TOKEN="NETBOX_API_TOKEN"
