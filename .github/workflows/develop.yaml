@@ -115,7 +115,6 @@ jobs:
     needs: [ package-service ]
     name: Deploy diode service on staging
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v3
 
@@ -131,7 +130,7 @@ jobs:
         with:
           host: ${{ secrets.DIODELAB_HOST }}
           username: ${{ secrets.DIODELAB_USERNAME }}
-          key: ${{ secrets.NETWORKLAB_SSH_KEY }}
+          key: ${{ secrets.DIODELAB_SSH_KEY }}
           port: 22
           source: "./docker/docker-compose.yml"
           target: "/storage-docker/diode-service/"
@@ -141,7 +140,7 @@ jobs:
         with:
           host: ${{ secrets.DIODELAB_HOST }}
           username: ${{ secrets.DIODELAB_USERNAME }}
-          key: ${{ secrets.NETWORKLAB_SSH_KEY }}
+          key: ${{ secrets.DIODELAB_SSH_KEY }}
           port: 22
           script: |
             cd /storage-docker/diode-service/
