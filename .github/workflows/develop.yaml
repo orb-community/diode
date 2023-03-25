@@ -144,6 +144,6 @@ jobs:
           port: 22
           script: |
             cd /storage-docker/diode-service/docker
-            ls -lha
+            sudo docker-compose --project-name=diode up -d
 
 
