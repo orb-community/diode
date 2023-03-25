@@ -133,7 +133,7 @@ jobs:
           key: ${{ secrets.DIODELAB_SSH_KEY }}
           port: 22
           source: "docker/docker-compose.yml"
-          target: "/tmp/diode-service"
+          target: "/storage-docker/diode-service"
             
       - name: Deploy diode-service
         uses: appleboy/ssh-action@v0.1.8
