@@ -120,14 +120,10 @@ jobs:
 
       - name: Preparing file for stg
         run: |
-          IMAGE_TAG=${{ needs.package-service.outputs.version }}$(git rev-parse --short HEAD)
+          IMAGE_TAG=${{ needs.package-service.outputs.version }}-$(git rev-parse --short HEAD)
           sed -i -e "s/IMAGE_TAG/$IMAGE_TAG/g" ./docker/docker-compose.yml
           sed -i -e "s/NETBOX_API_HOST/${{ secrets.NETBOX_API_HOST }}/g" ./docker/docker-compose.yml
           sed -i -e "s/NETBOX_API_TOKEN/${{ secrets.NETBOX_API_TOKEN }}/g" ./docker/docker-compose.yml
-
-      - name: debug content
-        run: |        
-          ls -lha
 
       - name: Update diode-service host files
         uses: appleboy/scp-action@master
@@ -137,7 +133,7 @@ jobs:
           key: ${{ secrets.DIODELAB_SSH_KEY }}
           port: 22
           source: "docker/docker-compose.yml"
-          target: "/storage-docker/diode-service"
+          target: "/tmp/diode-service"
             
       - name: Deploy diode-service
         uses: appleboy/ssh-action@v0.1.8
@@ -147,6 +143,7 @@ jobs:
           key: ${{ secrets.DIODELAB_SSH_KEY }}
           port: 22
           script: |
-            cd /storage-docker/diode-service/
-            sudo docker-compose --project-name=diode up -d
+            cd /storage-docker/diode-service/docker
+            ls -lha
+
 
