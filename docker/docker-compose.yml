@@ -15,5 +15,5 @@ services:
     image: orbcommunity/diode-agent:develop
     network_mode: "host"
     volumes:
-      - /usr/local/diode:/opt/diode/
+      - ./:/opt/diode/
     command: run -c /opt/diode/config.yaml

@@ -12,6 +12,7 @@ RUN make $SVC \
 
 FROM alpine:latest
 
+RUN mkdir /opt/diode/
 # Certificates are needed so that mailing util can work.
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /exe /
