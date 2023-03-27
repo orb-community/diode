@@ -6,8 +6,10 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/orb-community/diode/service/storage"
 
 	"github.com/orb-community/diode/service/config"
 	"github.com/orb-community/diode/service/nb_pusher"
@@ -21,6 +23,7 @@ type Service interface {
 }
 
 type DiodeService struct {
+	db                 *sql.DB
 	logger             *zap.Logger
 	config             config.Config
 	channel            chan []byte
@@ -32,7 +35,7 @@ type DiodeService struct {
 
 var _ Service = (*DiodeService)(nil)
 
-func New(logger *zap.Logger, config config.Config) Service {
+func New(logger *zap.Logger, config config.Config, db *sql.DB) Service {
 	return &DiodeService{
 		logger:  logger,
 		config:  config,
@@ -49,7 +52,9 @@ func (ds *DiodeService) Start() error {
 		return err
 	}
 
-	ds.otlpRecv = otlp.New(ds.asyncContext, ds.logger, &ds.config, ds.channel)
+	service := storage.NewSqliteStorage(ds.db)
+
+	ds.otlpRecv = otlp.New(ds.asyncContext, ds.logger, &ds.config, service, ds.channel)
 	err = ds.otlpRecv.Start()
 	if err != nil {
 		return err

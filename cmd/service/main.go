@@ -5,6 +5,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -53,7 +54,9 @@ func main() {
 		}
 	}(logger) // flushes buffer, if any
 
-	svc := service.New(logger, svcCfg)
+	db := startSqliteDb(logger)
+
+	svc := service.New(logger, svcCfg, db)
 	defer func(svc service.Service) {
 		err := svc.Stop()
 		if err != nil {
@@ -77,4 +80,13 @@ func main() {
 
 	err = <-errs
 	logger.Error("diode service terminated", zap.Error(err))
+}
+
+func startSqliteDb(logger *zap.Logger) (db *sql.DB) {
+	db, err := sql.Open("sqlite3", ":memory")
+	if err != nil {
+		logger.Fatal("SQLite could not be initialized", zap.Error(err))
+	}
+
+	return
 }
