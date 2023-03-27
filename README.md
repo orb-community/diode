@@ -33,16 +33,16 @@ You need to change some items like IMAGE_TAG, NETBOX_API_HOST, NETBOX_API_TOKEN 
 ```sh
 docker run -v /usr/local/diode:/opt/diode/ --net=host orbcommunity/diode-agent:develop run -c /opt/diode/config.yaml
 ```
-Diode agent can be configured as different output formats:
+### Diode agent can be configured to provide different output formats:
 
-- FILE 
-The agent output will be on a one or more files that will be created on the folder especified in output_path option
+- FILE <br /> 
+The agent will output one or more files in the folder specified by the `output_path` option
 
-- HTTP
-The agent outputt will be on a POST directly on Netbox Ingest plug-in API, that uses output_path as API endpoint and output_auth as API token
+- HTTP <br />
+The agent outputt will be on a POST directly on Netbox Ingest plug-in API, that uses `output_path` as API endpoint and `output_auth` as API token
 
-- OTLP
-The agent output will be on a OTLP request to the diode service port on the endpoint especified in output_path option
+- OTLP <br />
+The agent output will be in OTLP format and sent directly to the Diode service endpoint specified in the `output_path` option
 
 ## Config file example using FILE output
 ```yaml
@@ -55,9 +55,6 @@ diode:
       kind: discovery
       backend: suzieq
       data:
-        config:
-          poller:
-            run-once-update: true       
         inventory: 
           sources:
             - name: default_inventory
@@ -79,16 +76,13 @@ diode:
 diode:
   config:
     output_type: http
-    output_path: "https://your-netbox-url/api/plugins/ingest/ingest/"
-    output_auth: "Token xxxxxxxxxxxxxx-your-netbox-token-xxxxxxxxxxxxxxxx"
+    output_path: "https://your-netbox-url/api/plugins/ingest/ingest/"
+    output_auth: "Token xxxxxxxxxxxxxx-your-netbox-token-xxxxxxxxxxxxxxxx"
   policies:      
     discovery_1:
       kind: discovery
       backend: suzieq
-      data:
-        config:
-          poller:
-            run-once-update: true       
+      data:      
         inventory: 
           sources:
             - name: default_inventory
@@ -105,7 +99,6 @@ diode:
               device: default_devices
 ```
 
-
 ## Config file example using OTLP output
 ```yaml
 diode:
@@ -117,9 +110,6 @@ diode:
       kind: discovery
       backend: suzieq
       data:
-        config:
-          poller:
-            run-once-update: true       
         inventory: 
           sources:
             - name: default_inventory
