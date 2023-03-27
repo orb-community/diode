@@ -39,7 +39,7 @@ docker run -v /usr/local/diode:/opt/diode/ --net=host orbcommunity/diode-agent:d
 The agent will output one or more files in the folder specified by the `output_path` option
 
 - HTTP <br />
-The agent outputt will be on a POST directly on Netbox Ingest plug-in API, that uses `output_path` as API endpoint and `output_auth` as API token
+The agent will POST the output directly to the NetBox Ingest plug-in API, using `output_path` as the API target endpoint and `output_auth` as the API token.
 
 - OTLP <br />
 The agent output will be in OTLP format and sent directly to the Diode service endpoint specified in the `output_path` option
