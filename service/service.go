@@ -52,7 +52,7 @@ func (ds *DiodeService) Start() error {
 		return err
 	}
 
-	service := storage.NewSqliteStorage(ds.db)
+	service := storage.NewSqliteStorage(ds.db, ds.logger)
 
 	ds.otlpRecv = otlp.New(ds.asyncContext, ds.logger, &ds.config, service, ds.channel)
 	err = ds.otlpRecv.Start()
@@ -73,6 +73,9 @@ func (ds *DiodeService) Start() error {
 				for policy, v := range jsonData {
 					ds.logger.Info("policy name " + policy)
 					ds.logger.Info("data " + fmt.Sprintf("%v", v))
+					if err := service.Save(policy, jsonData); err != nil {
+						ds.logger.Error("error during storing", zap.String("policy", policy), zap.Error(err))
+					}
 				}
 			case <-ds.asyncContext.Done():
 				ds.logger.Info("service context cancelled")
