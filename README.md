@@ -54,7 +54,7 @@ diode:
     discovery_1:
       kind: discovery
       backend: suzieq
-      data:
+      data:     
         inventory: 
           sources:
             - name: default_inventory
