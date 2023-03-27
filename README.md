@@ -45,10 +45,7 @@ diode:
     discovery_1:
       kind: discovery
       backend: suzieq
-      data:
-        config:
-          poller:
-            run-once-update: true       
+      data:     
         inventory: 
           sources:
             - name: default_inventory
