@@ -120,6 +120,8 @@ jobs:
 
       - name: Preparing file for stg
         run: |
+          rm ./docker/docker-compose.yml
+          mv ./docker/docker-compose.yml.tpl ./docker/docker-compose.yml
           IMAGE_TAG=${{ needs.package-service.outputs.version }}-$(git rev-parse --short HEAD)
           sed -i -e "s/IMAGE_TAG/$IMAGE_TAG/g" ./docker/docker-compose.yml
           sed -i -e "s/NETBOX_API_HOST/${{ secrets.NETBOX_API_HOST }}/g" ./docker/docker-compose.yml
@@ -145,5 +147,3 @@ jobs:
           script: |
             cd /storage-docker/diode-service/docker
             sudo docker-compose --project-name=diode up -d
-
-
