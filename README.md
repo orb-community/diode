@@ -4,6 +4,25 @@
 
 `SERVICE=service make build_docker`
 
+## Running diode service docker image
+
+This an example [docker-compose.yml](https://github.com/orb-community/diode/blob/develop/docker/docker-compose.yml) to run diode service [image](https://hub.docker.com/r/orbcommunity/diode-service/tags):
+```
+version: '3.7'
+
+# Docker Services
+services:
+
+  service:
+    image: orbcommunity/diode-service:IMAGE_TAG
+    ports:
+      - "4317:4317"
+    environment:
+      - DIODE_SERVICE_NETBOX_ENDPOINT=NETBOX_API_HOST
+      - DIODE_SERVICE_NETBOX_TOKEN=NETBOX_API_TOKEN
+```
+
+You need to change some items like IMAGE_TAG, NETBOX_API_HOST, NETBOX_API_TOKEN to adapt your environment
 
 ## Building diode agent docker image:
 
