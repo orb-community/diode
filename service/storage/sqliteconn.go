@@ -24,7 +24,7 @@ func NewSqliteStorage(logger *zap.Logger) (Service, error) {
 }
 
 func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (stored interface{}, err error) {
-	ifData, ok := jsonData["interfaces"].([]map[string]interface{})
+	ifData, ok := jsonData["interfaces"].([]interface{})
 	if ok {
 		interfacesAdded := make([]DbInterface, len(ifData))
 		for _, interfaceData := range ifData {
@@ -128,8 +128,57 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			}
 			devicesAdded = append(devicesAdded, dbDevice)
 		}
-
 		return devicesAdded, nil
+	}
+	vData, ok := jsonData["vlan"].([]interface{})
+	if ok {
+		vlans := make([]DbVlan, len(vData))
+		for _, vlanData := range vData {
+			dataAsString, err := json.Marshal(vlanData)
+			if err != nil {
+				s.logger.Error("error marshalling interface data", zap.Error(err))
+				return nil, err
+			}
+			vlan := DbVlan{
+				Id:     uuid.NewString(),
+				Policy: policy,
+				Blob:   string(dataAsString),
+			}
+			err = json.Unmarshal(dataAsString, &vlan)
+			if err != nil {
+				s.logger.Error("error marshalling interface data", zap.Error(err))
+				return nil, err
+			}
+			statement, err := s.db.Prepare(
+				`
+				INSERT INTO vlans 
+					(
+						id,
+						policy,
+						namespace,
+						hostname,
+						name,
+						state,
+						json_data
+					)
+				VALUES 
+					(
+					  $1, $2, $3, $4, $5, $6, $7
+					)
+		`)
+			if err != nil {
+				s.logger.Error("error during preparing insert statement", zap.Error(err))
+				return nil, err
+			}
+			_, err = statement.Exec(vlan.Id, policy, vlan.Namespace, vlan.Hostname, vlan.Name,
+				vlan.State, dataAsString)
+			if err != nil {
+				s.logger.Error("error during executing insert statement", zap.Error(err))
+				return nil, err
+			}
+			vlans = append(vlans, vlan)
+		}
+		return vlans, nil
 	}
 	return nil, errors.New("not able to save anything from entry")
 }
@@ -195,6 +244,28 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 	logger.Debug("successfully created devices table")
+
+	createVlansTableStatement, err := db.Prepare(`
+	CREATE TABLE IF NOT EXISTS vlans
+	(
+	    id TEXT PRIMARY KEY,
+	    policy TEXT,
+	    namespace TEXT,
+		hostname TEXT,
+		name TEXT,
+		state TEXT,
+		netbox_id INTEGER NULL,
+		json_data TEXT 
+	)`)
+	if err != nil {
+		logger.Error("error preparing devices statement ", zap.Error(err))
+		return nil, err
+	}
+	_, err = createVlansTableStatement.Exec()
+	if err != nil {
+		logger.Error("error creating devices table", zap.Error(err))
+		return nil, err
+	}
 
 	return
 }
