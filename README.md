@@ -14,10 +14,10 @@ And finally you should be working on a Linux or macOS computer. Diode should tec
 
 Diode requires two configuration files to execute successfully:
 
-* `docker-compose.yml` - to configure the Diode containers
-* `config.yaml` - to configure the discovery scope
+* `docker-compose.yml` - to configure and run the Diode containers
+* `config.yaml` - to configure the scope of the discovery
 
-We recommend placing both configuration files in the same directory and running all commands from this directory:
+We recommend placing both configuration files in the same directory and running all commands from this common directory. For example:
 
 ```bash
 ~ % cd ~
@@ -26,17 +26,17 @@ We recommend placing both configuration files in the same directory and running 
 ~/diode 
 ```
 
-### Getting the default `docker-compose.yml`
+### Getting the default Diode `docker-compose.yml`
 
-You can get a working `docker-compose.yml` file by downloading an example from the Diode repository:
+You can get the default Diode `docker-compose.yml` file by downloading this example from the Diode repository:
 
 ```bash
 ~/diode % curl https://raw.githubusercontent.com/orb-community/diode/develop/docker/docker-compose.yml -o docker-compose.yml
 ```
 
-### Getting an example `config.yml`
+### Getting a template `config.yml`
 
-You can get a working `config.yml` file by downloading an example from the Diode repository:
+You can get a template of the `config.yml` file by downloading this example from the Diode repository:
 
 ```bash
 ~/diode % curl https://raw.githubusercontent.com/orb-community/diode/develop/docker/config.yml -o config.yml
@@ -44,7 +44,7 @@ You can get a working `config.yml` file by downloading an example from the Diode
 
 ### Updating the `config.yml` for your discovery
 
-The `config.yml` should look something like this and the `hosts:` section should be updated with a list of devices (and their credentials) to be discovered. 
+The `config.yml` needs to be updated with an inventory of devices to be discovered. The file will look something like this, where the `hosts:` section needs to be populated with the list of devices and their credentials that you want to have discovered.
 
 ```yaml
 diode:
@@ -60,7 +60,8 @@ diode:
           sources:
             - name: default_inventory
               hosts:
-                - url: ssh://192.168.0.4:2021 username=user password=password
+                - url: ssh://1.2.3.4:2021 username=user password=password
+                - url: ssh://resolvable.host.name username=user password=password
           devices:
             - name: default_devices
               transport: ssh
