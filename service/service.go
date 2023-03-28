@@ -8,11 +8,11 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/orb-community/diode/service/storage"
-
 	"github.com/orb-community/diode/service/config"
 	"github.com/orb-community/diode/service/nb_pusher"
 	"github.com/orb-community/diode/service/otlp"
+	"github.com/orb-community/diode/service/storage"
+	"github.com/orb-community/diode/service/translate"
 	"go.uber.org/zap"
 )
 
@@ -30,6 +30,7 @@ type DiodeService struct {
 	cancelAsyncContext context.CancelFunc
 	asyncContext       context.Context
 	storageService     storage.Service
+	translate          translate.Translator
 }
 
 var _ Service = (*DiodeService)(nil)
@@ -53,6 +54,7 @@ func New(ctx context.Context, cancelFunc context.CancelFunc, logger *zap.Logger,
 		cancelFunc()
 		return nil, err
 	}
+	translate := translate.New(ctx, logger, config, &service)
 	return &DiodeService{
 		logger:             logger,
 		config:             config,
@@ -62,6 +64,7 @@ func New(ctx context.Context, cancelFunc context.CancelFunc, logger *zap.Logger,
 		cancelAsyncContext: cancelFunc,
 		asyncContext:       ctx,
 		storageService:     service,
+		translate:          translate,
 	}, nil
 }
 
@@ -72,15 +75,16 @@ func (ds *DiodeService) Start() error {
 		for {
 			select {
 			case data := <-ds.channel:
-				err := json.Unmarshal(data, &jsonData)
-				if err != nil {
+				if err := json.Unmarshal(data, &jsonData); err != nil {
 					ds.logger.Error("fail to unmarshal json", zap.Error(err))
 					break
 				}
-				for policy, _ := range jsonData {
+				for policy := range jsonData {
 					if _, err := ds.storageService.Save(policy, jsonData); err != nil {
 						ds.logger.Error("error during storing", zap.String("policy", policy), zap.Error(err))
+						continue
 					}
+					//ds.translate.Translate()
 				}
 			case <-ds.asyncContext.Done():
 				ds.logger.Info("service context cancelled")
