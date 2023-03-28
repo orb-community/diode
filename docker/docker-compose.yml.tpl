@@ -4,16 +4,9 @@ version: '3.7'
 services:
 
   service:
-    image: orbcommunity/diode-service:develop
+    image: orbcommunity/diode-service:IMAGE_TAG
     ports:
       - "4317:4317"
     environment:
       - DIODE_SERVICE_NETBOX_ENDPOINT=NETBOX_API_HOST
       - DIODE_SERVICE_NETBOX_TOKEN=NETBOX_API_TOKEN
-
-  agent:
-    image: orbcommunity/diode-agent:develop
-    network_mode: "host"
-    volumes:
-      - ./:/opt/diode/
-    command: run -c /opt/diode/config.yaml
