@@ -342,7 +342,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 	constraint1TableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX interfaces_uniques ON interfaces(policy, namespace, hostname)
+		CREATE UNIQUE INDEX interfaces_uniques ON interfaces(policy, namespace, hostname, name)
 	`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
@@ -366,7 +366,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 	constraint3TableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX vlans_uniques ON vlans(policy, namespace, hostname)
+		CREATE UNIQUE INDEX vlans_uniques ON vlans(policy, namespace, hostname, name)
 	`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
