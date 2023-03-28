@@ -20,21 +20,25 @@ type NetboxObject struct {
 }
 
 type NetboxSite struct {
-	NetboxObject
+	Name   string `json:"name"`
+	Slug   string `json:"slug"`
 	Status string `json:"status"`
 }
 
 type NetboxDeviceType struct {
-	Mfr *NetboxObject `json:"manufacturer"`
-	NetboxObject
+	Mfr  *NetboxObject `json:"manufacturer"`
+	Name string        `json:"name"`
+	Slug string        `json:"slug"`
 }
 
 type NetboxDevice struct {
-	Site *NetboxSite       `json:"site"`
-	Role *NetboxObject     `json:"device_role"`
-	Type *NetboxDeviceType `json:"device_type"`
-	NetboxObject
-	Status string `json:"status"`
+	Site   *NetboxSite       `json:"site"`
+	Role   *NetboxObject     `json:"device_role"`
+	Type   *NetboxDeviceType `json:"device_type"`
+	Name   string            `json:"name"`
+	Slug   string            `json:"slug"`
+	Status string            `json:"status"`
+	Serial string            `json:"serial"`
 }
 
 type NetboxInterface struct {
