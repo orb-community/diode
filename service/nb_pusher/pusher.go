@@ -14,6 +14,7 @@ import (
 	"github.com/netbox-community/go-netbox/v3/netbox/client"
 	"github.com/netbox-community/go-netbox/v3/netbox/client/dcim"
 	"github.com/netbox-community/go-netbox/v3/netbox/client/extras"
+	"github.com/netbox-community/go-netbox/v3/netbox/client/status"
 	"github.com/netbox-community/go-netbox/v3/netbox/models"
 	"github.com/orb-community/diode/service/config"
 
@@ -66,14 +67,16 @@ func New(ctx context.Context, logger *zap.Logger, config *config.Config) Pusher 
 }
 
 func (nb *NetboxPusher) Start() error {
-	t := transport.New(nb.config.NetboxPusher.Endpoint, client.DefaultBasePath, []string{"https", "http"})
+	t := transport.New(nb.config.NetboxPusher.Endpoint, client.DefaultBasePath, []string{"http", "https"})
 	t.DefaultAuthentication = transport.APIKeyAuth(
 		"Authorization",
 		"header",
 		fmt.Sprintf("Token %v", nb.config.NetboxPusher.Token),
 	)
 	nb.client = client.New(t, nil)
-
+	if _, err := nb.client.Status.StatusList(status.NewStatusListParams(), nil); err != nil {
+		return err
+	}
 	nb.logger.Info("netbox pusher started")
 	return nil
 }
