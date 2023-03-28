@@ -9,12 +9,12 @@ type DbInterface struct {
 	Policy      string `json:"policy,omitempty"`
 	Namespace   string `json:"namespace"`
 	Hostname    string `json:"hostname"`
-	Name        string `json:"name"`
-	AdminState  string `json:"admin_state"`
+	Name        string `json:"ifname"`
+	AdminState  string `json:"adminState"`
 	Mtu         int64  `json:"mtu"`
 	Speed       int64  `json:"speed"`
-	MacAddress  string `json:"mac_address"`
-	IfType      string `json:"if_type"`
+	MacAddress  string `json:"macaddr"`
+	IfType      string `json:"type"`
 	NetboxRefId int64  `json:"netbox_id,omitempty"`
 	Blob        string `json:"blob,omitempty"`
 }
@@ -22,7 +22,7 @@ type DbInterface struct {
 type DbDevice struct {
 	Id           string `json:"id,omitempty"`
 	Policy       string `json:"policy,omitempty"`
-	SerialNumber string `json:"serial_number"`
+	SerialNumber string `json:"serialNumber"`
 	Namespace    string `json:"namespace"`
 	Hostname     string `json:"hostname"`
 	Model        string `json:"model"`
@@ -37,7 +37,7 @@ type DbVlan struct {
 	Policy      string `json:"policy,omitempty"`
 	Namespace   string `json:"namespace"`
 	Hostname    string `json:"hostname"`
-	Name        string `json:"name"`
+	Name        string `json:"vlanName"`
 	State       string `json:"state"`
 	NetboxRefId int64  `json:"netbox_id,omitempty"`
 	Blob        string `json:"blob,omitempty"`
