@@ -2,6 +2,10 @@ package storage
 
 type Service interface {
 	Save(policy string, jsonData map[string]interface{}) (interface{}, error)
+	GetInterfaceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInterface, error)
+	GetDevicesByPolicyAndNamespace(policy, namespace string) ([]DbDevice, error)
+	GetDeviceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) (DbDevice, error)
+	GetVlansByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbVlan, error)
 }
 
 type DbInterface struct {
@@ -25,6 +29,7 @@ type DbDevice struct {
 	SerialNumber string `json:"serialNumber"`
 	Namespace    string `json:"namespace"`
 	Hostname     string `json:"hostname"`
+	Address      string `json:"address"`
 	Model        string `json:"model"`
 	State        string `json:"state"`
 	Vendor       string `json:"vendor"`
