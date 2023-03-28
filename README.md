@@ -79,7 +79,7 @@ The `inventory:` section of the `config.yml` follows the SuzieQ Inventory File F
 Before running Diode, you should set the `NETBOX_API_HOST` and `NETBOX_API_TOKEN` environment variables to the send the discovery information to the correct NetBox instance.
 
 ```bash
-~/diode % export NETBOX_API_HOST=http://my.netbox.instance:8000
+~/diode % export NETBOX_API_HOST=my.netbox.instance:8000
 ~/diode % export NETBOX_API_TOKEN=123456789ABCDEF
 ```
 
