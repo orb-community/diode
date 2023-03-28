@@ -53,6 +53,7 @@ func main() {
 			log.Fatalf(err.Error())
 		}
 	}(logger) // flushes buffer, if any
+	logger.Info("loaded configurations", zap.String("NETBOX_ENDPOINT", svcCfg.NetboxPusher.Endpoint))
 	asyncContext, cancelAsyncContext := context.WithCancel(context.WithValue(context.Background(), "routine", "async"))
 
 	svc, err := service.New(asyncContext, cancelAsyncContext, logger, &svcCfg)

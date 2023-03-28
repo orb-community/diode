@@ -77,8 +77,8 @@ func (ds *DiodeService) Start() error {
 					ds.logger.Error("fail to unmarshal json", zap.Error(err))
 					break
 				}
-				for policy, _ := range jsonData {
-					if _, err := ds.storageService.Save(policy, jsonData); err != nil {
+				for policy, logEntryData := range jsonData {
+					if _, err := ds.storageService.Save(policy, logEntryData.(map[string]interface{})); err != nil {
 						ds.logger.Error("error during storing", zap.String("policy", policy), zap.Error(err))
 					}
 				}
