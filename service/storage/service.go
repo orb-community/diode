@@ -28,6 +28,7 @@ type DbDevice struct {
 	SerialNumber string `json:"serialNumber"`
 	Namespace    string `json:"namespace"`
 	Hostname     string `json:"hostname"`
+	Address      string `json:"address"`
 	Model        string `json:"model"`
 	State        string `json:"state"`
 	Vendor       string `json:"vendor"`

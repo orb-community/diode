@@ -181,6 +181,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 					policy, 
 					namespace,
 					hostname,
+					address,
 					serial_number,
 					model,
 					state,
@@ -188,14 +189,14 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 					json_data) 
 				VALUES 
 					(
-					  $1, $2, $3, $4, $5, $6, $7, $8, $9
+					  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 					)
 		`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement", zap.Error(err))
 				return nil, err
 			}
-			_, err = statement.Exec(dbDevice.Id, policy, dbDevice.Namespace, dbDevice.Hostname, dbDevice.SerialNumber,
+			_, err = statement.Exec(dbDevice.Id, policy, dbDevice.Namespace, dbDevice.Hostname, dbDevice.Address, dbDevice.SerialNumber,
 				dbDevice.Model, dbDevice.State, dbDevice.Vendor, dataAsString)
 			if err != nil {
 				s.logger.Error("error during executing insert statement", zap.Error(err))
@@ -302,6 +303,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		 	namespace TEXT,
 		 	hostname TEXT,
 		 	serial_number TEXT,
+		 	address TEXT,
 		 	model TEXT,
 		 	state TEXT,
 		 	vendor TEXT,
@@ -354,7 +356,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 	constraint2TableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX devices_uniques ON devices(policy, namespace, hostname)
+		CREATE UNIQUE INDEX devices_uniques ON devices(policy, namespace, hostname, address)
 	`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
