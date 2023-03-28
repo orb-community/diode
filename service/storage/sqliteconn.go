@@ -23,12 +23,12 @@ func NewSqliteStorage(logger *zap.Logger) (Service, error) {
 	return sqliteStorage{db: db, logger: logger}, nil
 }
 
-func (s sqliteStorage) GetInterfaceByPolicyAndNamespace(policy, namespace string) ([]DbInterface, error) {
+func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInterface, error) {
 	selectResult, err := s.db.Query(`
 		SELECT (id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, json_data) 
 		FROM interfaces
-		WHERE policy = $1 AND namespace = $2
-	`, policy, namespace)
+		WHERE policy = $1 AND namespace = $2 AND hostname = $3
+	`, policy, namespace, hostname)
 	if err != nil {
 		s.logger.Error("failed to fetch interface", zap.Error(err))
 		return nil, err
@@ -73,12 +73,29 @@ func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) 
 	return devices, nil
 }
 
-func (s sqliteStorage) GetVlansByPolicyAndNamespace(policy, namespace string) ([]DbVlan, error) {
+func (s sqliteStorage) GetDeviceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) (DbDevice, error) {
+	selectResult := s.db.QueryRow(`
+		SELECT (id, policy, namespace, hostname, serial_number, model, state, vendor, json_data) 
+		FROM devices
+		WHERE policy = $1 AND namespace = $2 AND hostname = $3
+	`, policy, namespace, hostname)
+	var device DbDevice
+	err := selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.SerialNumber,
+		&device.Model, &device.State, &device.Vendor, &device.Blob)
+	if err != nil {
+		s.logger.Error("failed to create device struct", zap.Error(err))
+		return DbDevice{}, err
+	}
+
+	return device, nil
+}
+
+func (s sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbVlan, error) {
 	selectResult, err := s.db.Query(`
 		SELECT (id, policy, namespace, hostname, name, state, json_data) 
 		FROM vlans
-		WHERE policy = $1 AND namespace = $2
-	`, policy, namespace)
+		WHERE policy = $1 AND namespace = $2 AND hostname = $3
+	`, policy, namespace, hostname)
 	if err != nil {
 		s.logger.Error("failed to fetch device", zap.Error(err))
 		return nil, err
@@ -356,7 +373,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 	constraint2TableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX devices_uniques ON devices(policy, namespace, hostname, address)
+		CREATE UNIQUE INDEX devices_uniques ON devices(policy, namespace, hostname)
 	`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
