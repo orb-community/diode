@@ -7,7 +7,9 @@ require (
 	github.com/go-openapi/runtime v0.25.0
 	github.com/google/uuid v1.3.0
 	github.com/gosimple/slug v1.13.1
+	github.com/mattn/go-sqlite3 v1.14.16
 	go.opentelemetry.io/collector/receiver v0.74.0
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
 
 require (

@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"github.com/google/uuid"
+	_ "github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 )
 
 type sqliteStorage struct {
@@ -63,6 +65,10 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (id 
 }
 
 func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
+	if !slices.Contains(sql.Drivers(), "sqlite3") {
+		logger.Error("SQLite does not have required driver", zap.Error(err))
+		return nil, err
+	}
 	db, err = sql.Open("sqlite3", ":memory")
 	if err != nil {
 		logger.Error("SQLite could not be initialized", zap.Error(err))

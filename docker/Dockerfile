@@ -6,8 +6,8 @@ ARG GOARM
 WORKDIR /go/src/github.com/orb-community/diode
 COPY . .
 RUN apk update \
-    && apk add make
-RUN make $SVC \
+    && apk add make build-base
+RUN CGO_ENABLED=1 make $SVC \
     && mv build/diode-$SVC /exe
 
 FROM alpine:latest
