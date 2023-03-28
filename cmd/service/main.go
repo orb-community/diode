@@ -88,5 +88,24 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB) {
 		logger.Fatal("SQLite could not be initialized", zap.Error(err))
 	}
 
+	createInterfacesTableStatement, err := db.Prepare("CREATE TABLE IF NOT EXISTS interfaces (id TEXT PRIMARY KEY, policy TEXT, interfaceData TEXT )")
+	if err != nil {
+		logger.Fatal("error preparing interfaces statement", zap.Error(err))
+	}
+	_, err = createInterfacesTableStatement.Exec()
+	if err != nil {
+		logger.Fatal("error creating interfaces table", zap.Error(err))
+	}
+	logger.Debug("successfully created Interfaces table")
+	createDeviceTableStatement, err := db.Prepare("CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, policy TEXT, deviceData TEXT )")
+	if err != nil {
+		logger.Fatal("error preparing devices statement ", zap.Error(err))
+	}
+	_, err = createDeviceTableStatement.Exec()
+	if err != nil {
+		logger.Fatal("error creating devices table", zap.Error(err))
+	}
+	logger.Debug("successfully created devices table")
+
 	return
 }
