@@ -258,14 +258,27 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		json_data TEXT 
 	)`)
 	if err != nil {
-		logger.Error("error preparing devices statement ", zap.Error(err))
+		logger.Error("error preparing vlans statement ", zap.Error(err))
 		return nil, err
 	}
 	_, err = createVlansTableStatement.Exec()
 	if err != nil {
-		logger.Error("error creating devices table", zap.Error(err))
+		logger.Error("error creating vlans table", zap.Error(err))
 		return nil, err
 	}
-
+	constraintSTableStatement, err := db.Prepare(`
+		CREATE UNIQUE INDEX interfaces_uniques ON interfaces(policy, namespace, hostname);
+		CREATE UNIQUE INDEX devices_uniques ON devices(policy, namespace, hostname);
+		CREATE UNIQUE INDEX vlans_uniques ON vlans(policy, namespace, hostname);
+	`)
+	if err != nil {
+		logger.Error("error constraints statement ", zap.Error(err))
+		return nil, err
+	}
+	_, err = constraintSTableStatement.Exec()
+	if err != nil {
+		logger.Error("error constraints execution", zap.Error(err))
+		return nil, err
+	}
 	return
 }
