@@ -152,6 +152,7 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 	}
 
 	data.Status = DeviceStatusMap[deviceData.Status]
+	data.Name = &deviceData.Name
 	data.Tags = []*models.NestedTag{&nb.discoveryTag}
 
 	device.Data = &data
@@ -160,7 +161,7 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.logger.Info("netbox device created")
+	nb.logger.Info("device created", zap.String("device", deviceData.Name))
 	return created.Payload.ID, nil
 }
 
@@ -219,7 +220,6 @@ func (nb *NetboxPusher) createDiodeTag(name *string, slug *string, color string)
 		return discoveryTag, err
 	}
 	if *list.GetPayload().Count == 0 {
-		nb.logger.Info("default " + *name + " tag does not exist, creating it")
 		extraTag := extras.NewExtrasTagsCreateParams()
 		extraTag.Data = &models.Tag{
 			Name:  name,
@@ -266,7 +266,7 @@ func (nb *NetboxPusher) createSite(site *NetboxSite, tag []*models.NestedTag) (i
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.logger.Info(site.Name + " site created")
+	nb.logger.Info("site created", zap.String("site", site.Name))
 	return created.Payload.ID, nil
 }
 
@@ -296,7 +296,7 @@ func (nb *NetboxPusher) createDeviceRole(role *NetboxObject, tag []*models.Neste
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.logger.Info(role.Name + " device role created")
+	nb.logger.Info("device role created", zap.String("role", role.Name))
 	return created.Payload.ID, nil
 }
 
@@ -326,7 +326,7 @@ func (nb *NetboxPusher) createManufacturer(mfr *NetboxObject, tag []*models.Nest
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.logger.Info(mfr.Name + " manufacturer type created")
+	nb.logger.Info("manufacturer type created", zap.String("manufacturer", mfr.Name))
 	return created.Payload.ID, nil
 }
 
@@ -375,6 +375,6 @@ func (nb *NetboxPusher) createDeviceType(dType *NetboxDeviceType, tag []*models.
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.logger.Info(dType.Model + " device type created")
+	nb.logger.Info("device type created", zap.String("type", dType.Model))
 	return created.Payload.ID, nil
 }
