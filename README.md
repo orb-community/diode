@@ -86,5 +86,5 @@ Before running Diode, you should set the `NETBOX_API_HOST` and `NETBOX_API_TOKEN
 You can now run Diode by executing the following command:
 
 ```bash
-~/diode % docker compose up
+~/diode % docker-compose up
 ```
