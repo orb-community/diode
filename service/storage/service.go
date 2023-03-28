@@ -4,7 +4,7 @@ type Service interface {
 	Save(policy string, jsonData map[string]interface{}) (string, error)
 }
 
-type dbInterface struct {
+type DbInterface struct {
 	Id          string
 	Policy      string
 	Namespace   string
@@ -19,7 +19,7 @@ type dbInterface struct {
 	Blob        string
 }
 
-type dbDevice struct {
+type DbDevice struct {
 	Id           string
 	Policy       string
 	SerialNumber string
@@ -32,7 +32,7 @@ type dbDevice struct {
 	Blob         string
 }
 
-type dbVlan struct {
+type DbVlan struct {
 	Id          string
 	Policy      string
 	Namespace   string
