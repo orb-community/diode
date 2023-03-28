@@ -272,7 +272,7 @@ func (nb *NetboxPusher) createSite(site *NetboxSite, tag []*models.NestedTag) (i
 
 func (nb *NetboxPusher) createDeviceRole(role *NetboxObject, tag []*models.NestedTag) (int64, error) {
 	unkRoleCheck := dcim.NewDcimDeviceRolesListParams()
-	unkRoleCheck.Slug = &role.Name
+	unkRoleCheck.Slug = &role.Slug
 	var err error
 	var list *dcim.DcimDeviceRolesListOK
 	list, err = nb.client.Dcim.DcimDeviceRolesList(unkRoleCheck, nil)
@@ -302,7 +302,7 @@ func (nb *NetboxPusher) createDeviceRole(role *NetboxObject, tag []*models.Neste
 
 func (nb *NetboxPusher) createManufacturer(mfr *NetboxObject, tag []*models.NestedTag) (int64, error) {
 	unkMfrCheck := dcim.NewDcimManufacturersListParams()
-	unkMfrCheck.Slug = &mfr.Name
+	unkMfrCheck.Slug = &mfr.Slug
 	var err error
 	var list *dcim.DcimManufacturersListOK
 	list, err = nb.client.Dcim.DcimManufacturersList(unkMfrCheck, nil)
