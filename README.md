@@ -76,7 +76,7 @@ The `inventory:` section of the `config.yml` follows the SuzieQ Inventory File F
 
 ## Running Diode
 
-Before running Diode, you should set the `NETBOX_API_HOST` and `NETBOX_API_TOKEN` environment variables to the send the discovery information to the correct NetBox instance.
+Before running Diode, you should set the `NETBOX_API_HOST` and `NETBOX_API_TOKEN` environment variables to send the discovery output to the correct NetBox instance.
 
 ```bash
 ~/diode % export NETBOX_API_HOST=my.netbox.instance:8000
