@@ -4,21 +4,41 @@ type Service interface {
 	Save(policy string, jsonData map[string]interface{}) (string, error)
 }
 
-type dbInterface struct {
+type DbInterface struct {
 	Id          string
-	Policy      string // id
-	Namespace   string // id
-	Hostname    string // id
-	NetboxRefId int64
-	IfName      string
+	Policy      string
+	Namespace   string
+	Hostname    string
+	Name        string
+	AdminState  string
+	Mtu         int64
+	Speed       int64
+	MacAddress  string
 	IfType      string
+	NetboxRefId int64
+	Blob        string
 }
 
-type dbDevice struct {
-	Id        string
-	Policy    string
-	Type      string
-	Namespace string
-	Hostname  string
-	Vendor    string
+type DbDevice struct {
+	Id           string
+	Policy       string
+	SerialNumber string
+	Namespace    string
+	Hostname     string
+	Model        string
+	State        string
+	Vendor       string
+	NetboxRefId  int64
+	Blob         string
+}
+
+type DbVlan struct {
+	Id          string
+	Policy      string
+	Namespace   string
+	Hostname    string
+	Name        string
+	State       string
+	NetboxRefId int64
+	Blob        string
 }
