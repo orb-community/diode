@@ -161,7 +161,9 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			_, err = statement.Exec(dbInterface.Id, policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name,
 				dbInterface.AdminState, dbInterface.Mtu, dbInterface.Speed, dbInterface.MacAddress, dbInterface.IfType, dataAsString)
 			if err != nil {
-				s.logger.Error("error during preparing insert statement on interface", zap.Error(err))
+				s.logger.Error("error during preparing insert statement on interface",
+					zap.Strings("interface", []string{policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name}),
+					zap.Error(err))
 				continue
 			}
 			interfacesAdded = append(interfacesAdded, dbInterface)
@@ -216,7 +218,9 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			_, err = statement.Exec(dbDevice.Id, policy, dbDevice.Namespace, dbDevice.Hostname, dbDevice.Address, dbDevice.SerialNumber,
 				dbDevice.Model, dbDevice.State, dbDevice.Vendor, dataAsString)
 			if err != nil {
-				s.logger.Error("error during executing insert statement", zap.Error(err))
+				s.logger.Error("error during preparing insert statement on device",
+					zap.Strings("device", []string{policy, dbDevice.Namespace, dbDevice.Hostname}),
+					zap.Error(err))
 				continue
 			}
 			devicesAdded = append(devicesAdded, dbDevice)
@@ -266,7 +270,9 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			_, err = statement.Exec(vlan.Id, policy, vlan.Namespace, vlan.Hostname, vlan.Name,
 				vlan.State, dataAsString)
 			if err != nil {
-				s.logger.Error("error during executing insert statement", zap.Error(err))
+				s.logger.Error("error during preparing insert statement on device",
+					zap.Strings("vlan", []string{policy, vlan.Namespace, vlan.Hostname, vlan.Name}),
+					zap.Error(err))
 				continue
 			}
 			vlans = append(vlans, vlan)
