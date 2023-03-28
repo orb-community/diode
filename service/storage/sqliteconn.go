@@ -171,7 +171,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 		if err != nil {
 			return nil, err
 		}
-		return interfacesAdded, nil
+		return interfacesAdded, err
 	}
 	dData, ok := jsonData["device"].([]interface{})
 	if ok {
@@ -225,7 +225,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			}
 			devicesAdded = append(devicesAdded, dbDevice)
 		}
-		return devicesAdded, nil
+		return devicesAdded, err
 	}
 	vData, ok := jsonData["vlan"].([]interface{})
 	if ok {
@@ -277,7 +277,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			}
 			vlans = append(vlans, vlan)
 		}
-		return vlans, nil
+		return vlans, err
 	}
 	return nil, errors.New("not able to save anything from entry")
 }
