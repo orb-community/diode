@@ -16,4 +16,4 @@ services:
     network_mode: "host"
     volumes:
       - ./:/opt/diode/
-    command: run -c /opt/diode/config.yaml
+    command: run -c /opt/diode/config.yml
