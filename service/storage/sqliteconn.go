@@ -23,6 +23,81 @@ func NewSqliteStorage(logger *zap.Logger) (Service, error) {
 	return sqliteStorage{db: db, logger: logger}, nil
 }
 
+func (s sqliteStorage) GetInterfaceByPolicyAndNamespace(policy, namespace string) ([]DbInterface, error) {
+	selectResult, err := s.db.Query(`
+		SELECT (id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, json_data) 
+		FROM interfaces
+		WHERE policy = $1 AND namespace = $2
+	`, policy, namespace)
+	if err != nil {
+		s.logger.Error("failed to fetch interface", zap.Error(err))
+		return nil, err
+	}
+	var interfaces []DbInterface
+	for selectResult.Next() {
+		var iface DbInterface
+		err := selectResult.Scan(&iface.Id, &iface.Policy, &iface.Namespace, &iface.Hostname, &iface.Name, &iface.AdminState,
+			&iface.Mtu, &iface.Speed, &iface.MacAddress, &iface.IfType, &iface.Blob)
+		if err != nil {
+			s.logger.Error("failed to create iface struct", zap.Error(err))
+			return nil, err
+		}
+		interfaces = append(interfaces, iface)
+	}
+
+	return interfaces, nil
+}
+
+func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) ([]DbDevice, error) {
+	selectResult, err := s.db.Query(`
+		SELECT (id, policy, namespace, hostname, serial_number, model, state, vendor, json_data) 
+		FROM devices
+		WHERE policy = $1 AND namespace = $2
+	`, policy, namespace)
+	if err != nil {
+		s.logger.Error("failed to fetch device", zap.Error(err))
+		return nil, err
+	}
+	var devices []DbDevice
+	for selectResult.Next() {
+		var device DbDevice
+		err := selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.SerialNumber,
+			&device.Model, &device.State, &device.Vendor, &device.Blob)
+		if err != nil {
+			s.logger.Error("failed to create device struct", zap.Error(err))
+			return nil, err
+		}
+		devices = append(devices, device)
+	}
+
+	return devices, nil
+}
+
+func (s sqliteStorage) GetVlansByPolicyAndNamespace(policy, namespace string) ([]DbVlan, error) {
+	selectResult, err := s.db.Query(`
+		SELECT (id, policy, namespace, hostname, name, state, json_data) 
+		FROM vlans
+		WHERE policy = $1 AND namespace = $2
+	`, policy, namespace)
+	if err != nil {
+		s.logger.Error("failed to fetch device", zap.Error(err))
+		return nil, err
+	}
+	var vlans []DbVlan
+	for selectResult.Next() {
+		var vlan DbVlan
+		err := selectResult.Scan(&vlan.Id, &vlan.Policy, &vlan.Namespace, &vlan.Hostname, &vlan.Name,
+			&vlan.State, &vlan.Blob)
+		if err != nil {
+			s.logger.Error("failed to create vlan struct", zap.Error(err))
+			return nil, err
+		}
+		vlans = append(vlans, vlan)
+	}
+
+	return vlans, nil
+}
+
 func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (stored interface{}, err error) {
 	ifData, ok := jsonData["interfaces"].([]interface{})
 	if ok {
@@ -266,19 +341,42 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		logger.Error("error creating vlans table", zap.Error(err))
 		return nil, err
 	}
-	constraintSTableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX interfaces_uniques ON interfaces(policy, namespace, hostname);
-		CREATE UNIQUE INDEX devices_uniques ON devices(policy, namespace, hostname);
-		CREATE UNIQUE INDEX vlans_uniques ON vlans(policy, namespace, hostname);
+	constraint1TableStatement, err := db.Prepare(`
+		CREATE UNIQUE INDEX interfaces_uniques ON interfaces(policy, namespace, hostname)
 	`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
 		return nil, err
 	}
-	_, err = constraintSTableStatement.Exec()
+	_, err = constraint1TableStatement.Exec()
 	if err != nil {
 		logger.Error("error constraints execution", zap.Error(err))
 		return nil, err
 	}
+	constraint2TableStatement, err := db.Prepare(`
+		CREATE UNIQUE INDEX devices_uniques ON devices(policy, namespace, hostname)
+	`)
+	if err != nil {
+		logger.Error("error constraints statement ", zap.Error(err))
+		return nil, err
+	}
+	_, err = constraint2TableStatement.Exec()
+	if err != nil {
+		logger.Error("error constraints execution", zap.Error(err))
+		return nil, err
+	}
+	constraint3TableStatement, err := db.Prepare(`
+		CREATE UNIQUE INDEX vlans_uniques ON vlans(policy, namespace, hostname)
+	`)
+	if err != nil {
+		logger.Error("error constraints statement ", zap.Error(err))
+		return nil, err
+	}
+	_, err = constraint3TableStatement.Exec()
+	if err != nil {
+		logger.Error("error constraints execution", zap.Error(err))
+		return nil, err
+	}
+
 	return
 }
