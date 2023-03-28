@@ -1,120 +1,66 @@
-# Diode
+# Diode quickstart
 
-## Building diode service docker image:
+This is a basic set of instructions on how to get started using Diode on your local machine using Docker.
 
-`SERVICE=service make build_docker`
+## Requirements
 
-## Running diode service docker image
+You'll need a recent installation of *Docker Community Edition* (or compatible) and *docker-compose*.
 
-This an example [docker-compose.yml](https://github.com/orb-community/diode/blob/develop/docker/docker-compose.yml) to run diode service [image](https://hub.docker.com/r/orbcommunity/diode-service/tags):
-```
-version: '3.7'
+You may also need to have [`Git` installed](https://git-scm.com/downloads).
 
-# Docker Services
-services:
+And finally you should be working on a Linux or macOS computer. Diode should technically also work on *Docker for Windows* (with Linux backend) or on the  *Windows Subsystem for Linux (WSL)*, but this guide does not cover this (yet).
 
-  service:
-    image: orbcommunity/diode-service:IMAGE_TAG
-    ports:
-      - "4317:4317"
-    environment:
-      - DIODE_SERVICE_NETBOX_ENDPOINT=NETBOX_API_HOST
-      - DIODE_SERVICE_NETBOX_TOKEN=NETBOX_API_TOKEN
-```
+## Diode configuration files
 
-You need to change some items like IMAGE_TAG, NETBOX_API_HOST, NETBOX_API_TOKEN to adapt your environment
+Diode requires two configuration files to execute successfully:
 
-## Building diode agent docker image:
+* `docker-compose.yml` - to configure the Diode containers
+* `config.yaml` - to configure the discovery scope
 
-`make agent`
+We recommend placing both configuration files in the same directory and running all commands from this directory:
 
-## Running diode agent docker image
-
-```sh
-docker run -v /usr/local/diode:/opt/diode/ --net=host orbcommunity/diode-agent:develop run -c /opt/diode/config.yaml
-```
-### Diode agent can be configured to provide different output formats:
-
-- FILE <br /> 
-The agent will output one or more files in the folder specified by the `output_path` option
-
-- HTTP <br />
-The agent will POST the output directly to the NetBox Ingest plug-in API, using `output_path` as the API target endpoint and `output_auth` as the API token.
-
-- OTLP <br />
-The agent output will be in OTLP format and sent directly to the Diode service endpoint specified in the `output_path` option
-
-## Config file example using FILE output
-```yaml
-diode:
-  config:
-    output_type: file
-    output_path: "/opt/diode"
-  policies:      
-    discovery_1:
-      kind: discovery
-      backend: suzieq
-      data:     
-        inventory: 
-          sources:
-            - name: default_inventory
-              hosts:
-                - url: ssh://192.168.0.4 username=user password=password
-          devices:
-            - name: default_devices
-              transport: ssh
-              ignore-known-hosts: true
-              slow-host: true
-          namespaces:
-            - name: default_namespace
-              source: default_inventory
-              device: default_devices
+```bash
+~ % cd ~
+~ % mkdir diode
+~ % cd diode
+~/diode 
 ```
 
-## Config file example using HTTP output
-```yaml
-diode:
-  config:
-    output_type: http
-    output_path: "https://your-netbox-url/api/plugins/ingest/ingest/"
-    output_auth: "Token xxxxxxxxxxxxxx-your-netbox-token-xxxxxxxxxxxxxxxx"
-  policies:      
-    discovery_1:
-      kind: discovery
-      backend: suzieq
-      data:      
-        inventory: 
-          sources:
-            - name: default_inventory
-              hosts:
-                - url: ssh://192.168.0.4 username=user password=password
-          devices:
-            - name: default_devices
-              transport: ssh
-              ignore-known-hosts: true
-              slow-host: true
-          namespaces:
-            - name: default_namespace
-              source: default_inventory
-              device: default_devices
+### Getting the default `docker-compose.yml`
+
+You can get a working `docker-compose.yml` file by downloading an example from the Diode repository:
+
+```bash
+~/diode % curl https://raw.githubusercontent.com/orb-community/diode/develop/docker/docker-compose.yml -o docker-compose.yml
 ```
 
-## Config file example using OTLP output
+### Getting an example `config.yml`
+
+You can get a working `config.yml` file by downloading an example from the Diode repository:
+
+```bash
+~/diode % curl https://raw.githubusercontent.com/orb-community/diode/develop/docker/config.yml -o config.yml
+```
+
+### Updating the `config.yml` for your discovery
+
+The `config.yml` should look something like this and the `hosts:` section should be updated with a list of devices (and their credentials) to be discovered. 
+
 ```yaml
 diode:
   config:
     output_type: otlp
-    output_path: "your-diode-service-instance:4317"
-  policies:      
+    output_path: "127.0.0.1:4317"
+  policies:  
     discovery_1:
       kind: discovery
       backend: suzieq
-      data:
+      data:   
         inventory: 
           sources:
             - name: default_inventory
               hosts:
-                - url: ssh://192.168.0.4 username=user password=password
+                - url: ssh://192.168.0.4:2021 username=user password=password
           devices:
             - name: default_devices
               transport: ssh
@@ -126,3 +72,19 @@ diode:
               device: default_devices
 ```
 
+The `inventory:` section of the `config.yml` follows the SuzieQ Inventory File Format. Please refer to the SuzieQ [documentation](https://suzieq.readthedocs.io/en/latest/inventory/) for additional details.
+
+## Running Diode
+
+Before running Diode, you should set the `NETBOX_API_HOST` and `NETBOX_API_TOKEN` environment variables to the send the discovery information to the correct NetBox instance.
+
+```bash
+~/diode % export NETBOX_API_HOST='my.netbox.instance:8000'
+~/diode % export NETBOX_API_TOKEN='123456789ABCDEF'
+```
+
+You can now run Diode by executing the following command:
+
+```bash
+~/diode % docker compose up
+```
