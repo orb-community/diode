@@ -44,22 +44,37 @@ func New(ctx context.Context, logger *zap.Logger, config *config.Config, db *sto
 }
 
 func (st *SuzieqTraslate) Translate(data interface{}) error {
-	if device, ok := data.(storage.DbDevice); ok {
-		j, err := st.translateDevice(&device)
-		if err != nil {
-			return err
-		}
-		_, err = (*st.pusher).CreateDevice(j)
-		if err != nil {
-			return err
+	if devices, ok := data.([]storage.DbDevice); ok {
+		for _, device := range devices {
+			if len(device.Id) == 0 {
+				continue
+			}
+			j, err := st.translateDevice(&device)
+			if err != nil {
+				return err
+			}
+			_, err = (*st.pusher).CreateDevice(j)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
-	} else if ifs, ok := data.(storage.DbInterface); ok {
-		_, err := st.translateInterface(&ifs)
-		return err
-	} else if vlan, ok := data.(storage.DbVlan); ok {
-		_, err := st.translateVlan(&vlan)
-		return err
+	} else if ifs, ok := data.([]storage.DbInterface); ok {
+		for _, ifce := range ifs {
+			if len(ifce.Id) == 0 {
+				continue
+			}
+			_, err := st.translateInterface(&ifce)
+			return err
+		}
+	} else if vlans, ok := data.([]storage.DbVlan); ok {
+		for _, vlan := range vlans {
+			if len(vlan.Id) == 0 {
+				continue
+			}
+			_, err := st.translateVlan(&vlan)
+			return err
+		}
 	}
 	return errors.New("no valid translatable data found")
 }

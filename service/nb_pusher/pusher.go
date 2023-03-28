@@ -37,8 +37,8 @@ type NetboxPusher struct {
 	unkDtypeID     int64
 	unkMfrID       int64
 	tagsInit       bool
-	discoveryTag   []*models.NestedTag
-	placeholderTag []*models.NestedTag
+	discoveryTag   models.NestedTag
+	placeholderTag models.NestedTag
 }
 
 var _ Pusher = (*NetboxPusher)(nil)
@@ -95,66 +95,73 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 	}
 
 	device := dcim.NewDcimDevicesCreateParams()
+	var data models.WritableDeviceWithConfigContext
 
 	var siteID int64
 	if deviceData.Site != nil {
 		deviceData.Site.Slug = slug.Make(deviceData.Site.Name)
-		siteID, err = nb.createSite(deviceData.Site, nb.discoveryTag)
+		siteID, err = nb.createSite(deviceData.Site, []*models.NestedTag{&nb.discoveryTag})
 		if err != nil {
 			return invalid_id, err
 		}
-		device.Data.Site = &siteID
+		data.Site = &siteID
 	} else {
 		if nb.unkSiteID == invalid_id {
-			if nb.unkSiteID, err = nb.createSite(&NetboxSite{Name: unknown_name, Slug: unknown_slug, Status: staging_status}, nb.placeholderTag); err != nil {
+			if nb.unkSiteID, err = nb.createSite(&NetboxSite{Name: unknown_name, Slug: unknown_slug, Status: staging_status},
+				[]*models.NestedTag{&nb.discoveryTag, &nb.placeholderTag}); err != nil {
 				return invalid_id, err
 			}
 		}
-		device.Data.Site = &nb.unkSiteID
+		data.Site = &nb.unkSiteID
 	}
 
 	var roleID int64
 	if deviceData.Role != nil {
 		deviceData.Role.Slug = slug.Make(deviceData.Role.Name)
-		roleID, err = nb.createDeviceRole(deviceData.Role, nb.discoveryTag)
+		roleID, err = nb.createDeviceRole(deviceData.Role, []*models.NestedTag{&nb.discoveryTag})
 		if err != nil {
 			return invalid_id, err
 		}
-		device.Data.DeviceRole = &roleID
+		data.DeviceRole = &roleID
 	} else {
 		if nb.unkRoleID == invalid_id {
 			unkownObject := &NetboxObject{Name: unknown_name, Slug: unknown_slug}
-			if nb.unkRoleID, err = nb.createDeviceRole(unkownObject, nb.placeholderTag); err != nil {
+			if nb.unkRoleID, err = nb.createDeviceRole(unkownObject, []*models.NestedTag{&nb.discoveryTag, &nb.placeholderTag}); err != nil {
 				return invalid_id, err
 			}
 		}
-		device.Data.DeviceRole = &nb.unkRoleID
+		data.DeviceRole = &nb.unkRoleID
 	}
 
 	var typeID int64
 	if deviceData.Type != nil {
-		deviceData.Type.Slug = slug.Make(deviceData.Type.Name)
-		typeID, err = nb.createDeviceType(deviceData.Type, nb.discoveryTag)
+		deviceData.Type.Slug = slug.Make(deviceData.Type.Model)
+		typeID, err = nb.createDeviceType(deviceData.Type, []*models.NestedTag{&nb.discoveryTag})
 		if err != nil {
 			return invalid_id, err
 		}
-		device.Data.DeviceType = &typeID
+		data.DeviceType = &typeID
 	} else {
 		if nb.unkDtypeID == invalid_id {
-			if nb.unkDtypeID, err = nb.createDeviceType(&NetboxDeviceType{Mfr: nil, Name: unknown_name, Slug: unknown_slug}, nb.placeholderTag); err != nil {
+			if nb.unkDtypeID, err = nb.createDeviceType(&NetboxDeviceType{Mfr: nil, Model: unknown_name, Slug: unknown_slug},
+				[]*models.NestedTag{&nb.discoveryTag, &nb.placeholderTag}); err != nil {
 				return invalid_id, err
 			}
 		}
-		device.Data.DeviceType = &nb.unkDtypeID
+		data.DeviceType = &nb.unkDtypeID
 	}
 
-	device.Data.Status = DeviceStatusMap[deviceData.Status]
+	data.Status = DeviceStatusMap[deviceData.Status]
+	data.Name = &deviceData.Name
+	data.Tags = []*models.NestedTag{&nb.discoveryTag}
+
+	device.Data = &data
 	var created *dcim.DcimDevicesCreateCreated
 	created, err = nb.client.Dcim.DcimDevicesCreate(device, nil)
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.logger.Info("netbox device created")
+	nb.logger.Info("device created", zap.String("device", deviceData.Name))
 	return created.Payload.ID, nil
 }
 
@@ -198,22 +205,21 @@ func (nb *NetboxPusher) initializeDiodeTags() error {
 	if nb.placeholderTag, err = nb.createDiodeTag(&placeholder_tag_name, &placeholder_tag_slug, placeholder_tag_color); err != nil {
 		return err
 	}
-	nb.placeholderTag = append(nb.placeholderTag, nb.discoveryTag...)
 	nb.tagsInit = true
 	return nil
 }
 
-func (nb *NetboxPusher) createDiodeTag(name *string, slug *string, color string) ([]*models.NestedTag, error) {
+func (nb *NetboxPusher) createDiodeTag(name *string, slug *string, color string) (models.NestedTag, error) {
 	tagCheck := extras.NewExtrasTagsListParams()
 	tagCheck.Slug = slug
+	var discoveryTag models.NestedTag
 	var err error
 	var list *extras.ExtrasTagsListOK
 	list, err = nb.client.Extras.ExtrasTagsList(tagCheck, nil)
 	if err != nil {
-		return nil, err
+		return discoveryTag, err
 	}
 	if *list.GetPayload().Count == 0 {
-		nb.logger.Info("default " + *name + " tag does not exist, creating it")
 		extraTag := extras.NewExtrasTagsCreateParams()
 		extraTag.Data = &models.Tag{
 			Name:  name,
@@ -222,11 +228,10 @@ func (nb *NetboxPusher) createDiodeTag(name *string, slug *string, color string)
 		}
 		_, err = nb.client.Extras.ExtrasTagsCreate(extraTag, nil)
 		if err != nil {
-			return nil, err
+			return discoveryTag, err
 		}
 	}
-	discoveryTag := make([]*models.NestedTag, 1)
-	discoveryTag[0] = &models.NestedTag{
+	discoveryTag = models.NestedTag{
 		Name: &discovery_tag_name,
 		Slug: &discovery_tag_slug,
 	}
@@ -248,7 +253,6 @@ func (nb *NetboxPusher) createSite(site *NetboxSite, tag []*models.NestedTag) (i
 			return result.ID, nil
 		}
 	}
-	nb.logger.Info("default unknown site does not exist, creating it")
 	unkSite := dcim.NewDcimSitesCreateParams()
 
 	unkSite.Data = &models.WritableSite{
@@ -262,7 +266,7 @@ func (nb *NetboxPusher) createSite(site *NetboxSite, tag []*models.NestedTag) (i
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.logger.Info("unknown site created")
+	nb.logger.Info("site created", zap.String("site", site.Name))
 	return created.Payload.ID, nil
 }
 
@@ -281,7 +285,6 @@ func (nb *NetboxPusher) createDeviceRole(role *NetboxObject, tag []*models.Neste
 			return result.ID, nil
 		}
 	}
-	nb.logger.Info("default unknown device role does not exist, creating it")
 	unkRole := dcim.NewDcimDeviceRolesCreateParams()
 	unkRole.Data = &models.DeviceRole{
 		Name: &role.Name,
@@ -293,7 +296,7 @@ func (nb *NetboxPusher) createDeviceRole(role *NetboxObject, tag []*models.Neste
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.logger.Info("unknown device role created")
+	nb.logger.Info("device role created", zap.String("role", role.Name))
 	return created.Payload.ID, nil
 }
 
@@ -312,7 +315,6 @@ func (nb *NetboxPusher) createManufacturer(mfr *NetboxObject, tag []*models.Nest
 			return result.ID, nil
 		}
 	}
-	nb.logger.Info("default unknown manufacturer does not exist, creating it")
 	unkMfr := dcim.NewDcimManufacturersCreateParams()
 	unkMfr.Data = &models.Manufacturer{
 		Name: &mfr.Name,
@@ -324,13 +326,13 @@ func (nb *NetboxPusher) createManufacturer(mfr *NetboxObject, tag []*models.Nest
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.logger.Info("unknown device type created")
+	nb.logger.Info("manufacturer type created", zap.String("manufacturer", mfr.Name))
 	return created.Payload.ID, nil
 }
 
 func (nb *NetboxPusher) createDeviceType(dType *NetboxDeviceType, tag []*models.NestedTag) (int64, error) {
 	unkDTypeCheck := dcim.NewDcimDeviceTypesListParams()
-	unkDTypeCheck.Slug = &dType.Name
+	unkDTypeCheck.Slug = &dType.Slug
 	var err error
 	var list *dcim.DcimDeviceTypesListOK
 	list, err = nb.client.Dcim.DcimDeviceTypesList(unkDTypeCheck, nil)
@@ -343,19 +345,18 @@ func (nb *NetboxPusher) createDeviceType(dType *NetboxDeviceType, tag []*models.
 			return result.ID, nil
 		}
 	}
-	nb.logger.Info("default unknown device type does not exist, creating it")
 
 	var mfrID int64
 	if dType.Mfr != nil {
 		dType.Mfr.Slug = slug.Make(dType.Mfr.Name)
-		mfrID, err = nb.createManufacturer(dType.Mfr, nb.discoveryTag)
+		mfrID, err = nb.createManufacturer(dType.Mfr, []*models.NestedTag{&nb.discoveryTag})
 		if err != nil {
 			return invalid_id, err
 		}
 	} else {
 		if nb.unkMfrID == invalid_id {
 			unkownObject := &NetboxObject{Name: unknown_name, Slug: unknown_slug}
-			if nb.unkMfrID, err = nb.createManufacturer(unkownObject, nb.placeholderTag); err != nil {
+			if nb.unkMfrID, err = nb.createManufacturer(unkownObject, []*models.NestedTag{&nb.discoveryTag, &nb.placeholderTag}); err != nil {
 				return invalid_id, err
 			}
 		}
@@ -364,7 +365,7 @@ func (nb *NetboxPusher) createDeviceType(dType *NetboxDeviceType, tag []*models.
 
 	unkDType := dcim.NewDcimDeviceTypesCreateParams()
 	unkDType.Data = &models.WritableDeviceType{
-		Model:        &dType.Name,
+		Model:        &dType.Model,
 		Slug:         &dType.Slug,
 		Manufacturer: &mfrID,
 		Tags:         tag,
@@ -374,6 +375,6 @@ func (nb *NetboxPusher) createDeviceType(dType *NetboxDeviceType, tag []*models.
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.logger.Info("unknown device type created")
+	nb.logger.Info("device type created", zap.String("type", dType.Model))
 	return created.Payload.ID, nil
 }

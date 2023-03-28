@@ -26,9 +26,9 @@ type NetboxSite struct {
 }
 
 type NetboxDeviceType struct {
-	Mfr  *NetboxObject `json:"manufacturer"`
-	Name string        `json:"name"`
-	Slug string        `json:"slug"`
+	Mfr   *NetboxObject `json:"manufacturers"`
+	Model string        `json:"model"`
+	Slug  string        `json:"slug"`
 }
 
 type NetboxDevice struct {
