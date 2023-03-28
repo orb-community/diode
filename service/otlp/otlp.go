@@ -6,7 +6,6 @@ package otlp
 
 import (
 	"context"
-
 	"github.com/orb-community/diode/service/config"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
