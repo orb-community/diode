@@ -6,8 +6,6 @@ package otlp
 
 import (
 	"context"
-	"github.com/orb-community/diode/service/storage"
-
 	"github.com/orb-community/diode/service/config"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -25,12 +23,11 @@ type Otlp interface {
 }
 
 type DiodeOtlp struct {
-	ctx            context.Context
-	storageService storage.Service
-	logger         *zap.Logger
-	config         *config.Config
-	consumer       consumer.Logs
-	receiver       receiver.Logs
+	ctx      context.Context
+	logger   *zap.Logger
+	config   *config.Config
+	consumer consumer.Logs
+	receiver receiver.Logs
 }
 
 type DiodeLogConsumer struct {
@@ -40,8 +37,8 @@ type DiodeLogConsumer struct {
 
 var _ Otlp = (*DiodeOtlp)(nil)
 
-func New(ctx context.Context, logger *zap.Logger, config *config.Config, storageService storage.Service, channel chan []byte) Otlp {
-	return &DiodeOtlp{ctx: ctx, logger: logger, config: config, consumer: newLogConsumer(channel), storageService: storageService}
+func New(ctx context.Context, logger *zap.Logger, config *config.Config, channel chan []byte) Otlp {
+	return &DiodeOtlp{ctx: ctx, logger: logger, config: config, consumer: newLogConsumer(channel)}
 }
 
 func (d *DiodeOtlp) Start() error {
