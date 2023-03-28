@@ -24,10 +24,10 @@ func NewSqliteStorage(logger *zap.Logger) (Service, error) {
 }
 
 func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (stored interface{}, err error) {
-	data, ok := jsonData["interfaces"].([]map[string]interface{})
+	ifData, ok := jsonData["interfaces"].([]map[string]interface{})
 	if ok {
-		interfacesAdded := make([]DbInterface, len(data))
-		for _, interfaceData := range data {
+		interfacesAdded := make([]DbInterface, len(ifData))
+		for _, interfaceData := range ifData {
 			dataAsString, err := json.Marshal(interfaceData)
 			if err != nil {
 				s.logger.Error("error marshalling interface data", zap.Error(err))
@@ -64,67 +64,72 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement on interface", zap.Error(err))
-				continue
+				return nil, err
 			}
 			_, err = statement.Exec(dbInterface.Id, policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name,
 				dbInterface.AdminState, dbInterface.Mtu, dbInterface.Speed, dbInterface.MacAddress, dbInterface.IfType, dataAsString)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement on interface", zap.Error(err))
-				continue
+				return nil, err
 			}
 			interfacesAdded = append(interfacesAdded, dbInterface)
 		}
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		return interfacesAdded, nil
 	}
-	data, ok = jsonData["device"].([]map[string]interface{})
+	dData, ok := jsonData["device"].([]interface{})
 	if ok {
-		dataAsString, err := json.Marshal(data)
-		if err != nil {
-			s.logger.Error("error marshalling interface data", zap.Error(err))
-			return nil, err
-		}
-		dbDevice := DbDevice{
-			Id:     uuid.NewString(),
-			Policy: policy,
-			Blob:   string(dataAsString),
-		}
-		err = json.Unmarshal(dataAsString, &dbDevice)
-		if err != nil {
-			s.logger.Error("error marshalling interface data", zap.Error(err))
-			return nil, err
-		}
-		statement, err := s.db.Prepare(
-			`
-		INSERT INTO devices 
-		    (
-		 	id,
-		    policy, 
-		 	namespace,
-		 	hostname,
-		 	serial_number,
-		 	model,
-		 	state,
-		 	vendor, 
-		    json_data) 
-		VALUES 
-		    (
-		 	  $1, $2, $3, $4, $5, $6, $7, $8, $9
-		    )
+		devicesAdded := make([]DbDevice, len(dData))
+		for _, deviceData := range dData {
+			dataAsString, err := json.Marshal(deviceData)
+			if err != nil {
+				s.logger.Error("error marshalling interface data", zap.Error(err))
+				return nil, err
+			}
+			dbDevice := DbDevice{
+				Id:     uuid.NewString(),
+				Policy: policy,
+				Blob:   string(dataAsString),
+			}
+			err = json.Unmarshal(dataAsString, &dbDevice)
+			if err != nil {
+				s.logger.Error("error marshalling interface data", zap.Error(err))
+				return nil, err
+			}
+			statement, err := s.db.Prepare(
+				`
+				INSERT INTO devices 
+					(
+					id,
+					policy, 
+					namespace,
+					hostname,
+					serial_number,
+					model,
+					state,
+					vendor, 
+					json_data) 
+				VALUES 
+					(
+					  $1, $2, $3, $4, $5, $6, $7, $8, $9
+					)
 		`)
-		if err != nil {
-			s.logger.Error("error during preparing insert statement", zap.Error(err))
-			return "", err
+			if err != nil {
+				s.logger.Error("error during preparing insert statement", zap.Error(err))
+				return nil, err
+			}
+			_, err = statement.Exec(dbDevice.Id, policy, dbDevice.Namespace, dbDevice.Hostname, dbDevice.SerialNumber,
+				dbDevice.Model, dbDevice.State, dbDevice.Vendor, dataAsString)
+			if err != nil {
+				s.logger.Error("error during executing insert statement", zap.Error(err))
+				return nil, err
+			}
+			devicesAdded = append(devicesAdded, dbDevice)
 		}
-		_, err = statement.Exec(dbDevice.Id, policy, dbDevice.Namespace, dbDevice.Hostname, dbDevice.SerialNumber,
-			dbDevice.Model, dbDevice.State, dbDevice.Vendor, dataAsString)
-		if err != nil {
-			s.logger.Error("error during executing insert statement", zap.Error(err))
-			return "", err
-		}
-		return dbDevice, nil
+
+		return devicesAdded, nil
 	}
 	return nil, errors.New("not able to save anything from entry")
 }
