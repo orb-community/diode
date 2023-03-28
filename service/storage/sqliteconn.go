@@ -171,7 +171,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 		if err != nil {
 			return nil, err
 		}
-		return interfacesAdded, nil
+		return interfacesAdded, err
 	}
 	dData, ok := jsonData["device"].([]interface{})
 	if ok {
@@ -225,7 +225,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			}
 			devicesAdded = append(devicesAdded, dbDevice)
 		}
-		return devicesAdded, nil
+		return devicesAdded, err
 	}
 	vData, ok := jsonData["vlan"].([]interface{})
 	if ok {
@@ -277,7 +277,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			}
 			vlans = append(vlans, vlan)
 		}
-		return vlans, nil
+		return vlans, err
 	}
 	return nil, errors.New("not able to save anything from entry")
 }
@@ -367,7 +367,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 	constraint1TableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX interfaces_uniques ON interfaces(policy, namespace, hostname, name)
+		CREATE UNIQUE INDEX IF NOT EXISTS interfaces_uniques ON interfaces(policy, namespace, hostname, name)
 	`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
@@ -379,7 +379,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 	constraint2TableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX devices_uniques ON devices(policy, namespace, hostname)
+		CREATE UNIQUE INDEX IF NOT EXISTS devices_uniques ON devices(policy, namespace, hostname)
 	`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
@@ -391,7 +391,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 	constraint3TableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX vlans_uniques ON vlans(policy, namespace, hostname, name)
+		CREATE UNIQUE INDEX IF NOT EXISTS vlans_uniques ON vlans(policy, namespace, hostname, name)
 	`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
