@@ -54,7 +54,7 @@ func New(ctx context.Context, cancelFunc context.CancelFunc, logger *zap.Logger,
 		cancelFunc()
 		return nil, err
 	}
-	translate := translate.New(ctx, logger, config, &service)
+	translate := translate.New(ctx, logger, config, &service, &pusher)
 	return &DiodeService{
 		logger:             logger,
 		config:             config,
@@ -75,16 +75,20 @@ func (ds *DiodeService) Start() error {
 		for {
 			select {
 			case data := <-ds.channel:
-				if err := json.Unmarshal(data, &jsonData); err != nil {
+				var err error
+				if err = json.Unmarshal(data, &jsonData); err != nil {
 					ds.logger.Error("fail to unmarshal json", zap.Error(err))
 					break
 				}
 				for policy := range jsonData {
-					if _, err := ds.storageService.Save(policy, jsonData); err != nil {
+					var ret interface{}
+					if ret, err = ds.storageService.Save(policy, jsonData); err != nil {
 						ds.logger.Error("error during storing", zap.String("policy", policy), zap.Error(err))
 						continue
 					}
-					//ds.translate.Translate()
+					if err = ds.translate.Translate(ret); err != nil {
+						ds.logger.Error("error during traslating data", zap.String("policy", policy), zap.Error(err))
+					}
 				}
 			case <-ds.asyncContext.Done():
 				ds.logger.Info("service context cancelled")

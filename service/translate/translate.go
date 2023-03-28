@@ -10,12 +10,13 @@ import (
 	"errors"
 
 	"github.com/orb-community/diode/service/config"
+	"github.com/orb-community/diode/service/nb_pusher"
 	"github.com/orb-community/diode/service/storage"
 	"go.uber.org/zap"
 )
 
 type Translator interface {
-	Translate(interface{}) ([]byte, error)
+	Translate(interface{}) error
 }
 
 type SuzieqTraslate struct {
@@ -23,6 +24,7 @@ type SuzieqTraslate struct {
 	logger *zap.Logger
 	config *config.Config
 	db     *storage.Service
+	pusher *nb_pusher.Pusher
 }
 
 type deviceJsonReturn struct {
@@ -37,19 +39,29 @@ type deviceJsonReturn struct {
 	} `json:"device_type"`
 }
 
-func New(ctx context.Context, logger *zap.Logger, config *config.Config, db *storage.Service) Translator {
-	return &SuzieqTraslate{ctx: ctx, logger: logger, config: config, db: db}
+func New(ctx context.Context, logger *zap.Logger, config *config.Config, db *storage.Service, pusher *nb_pusher.Pusher) Translator {
+	return &SuzieqTraslate{ctx: ctx, logger: logger, config: config, db: db, pusher: pusher}
 }
 
-func (st *SuzieqTraslate) Translate(data interface{}) ([]byte, error) {
+func (st *SuzieqTraslate) Translate(data interface{}) error {
 	if device, ok := data.(storage.DbDevice); ok {
-		return st.translateDevice(&device)
+		j, err := st.translateDevice(&device)
+		if err != nil {
+			return err
+		}
+		_, err = (*st.pusher).CreateDevice(j)
+		if err != nil {
+			return err
+		}
+		return nil
 	} else if ifs, ok := data.(storage.DbInterface); ok {
-		return st.translateInterface(&ifs)
+		_, err := st.translateInterface(&ifs)
+		return err
 	} else if vlan, ok := data.(storage.DbVlan); ok {
-		return st.translateVlan(&vlan)
+		_, err := st.translateVlan(&vlan)
+		return err
 	}
-	return nil, errors.New("no valid translatable data found")
+	return errors.New("no valid translatable data found")
 }
 
 func (st *SuzieqTraslate) translateDevice(device *storage.DbDevice) ([]byte, error) {
