@@ -156,13 +156,13 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement on interface", zap.Error(err))
-				return nil, err
+				continue
 			}
 			_, err = statement.Exec(dbInterface.Id, policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name,
 				dbInterface.AdminState, dbInterface.Mtu, dbInterface.Speed, dbInterface.MacAddress, dbInterface.IfType, dataAsString)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement on interface", zap.Error(err))
-				return nil, err
+				continue
 			}
 			interfacesAdded = append(interfacesAdded, dbInterface)
 		}
@@ -178,7 +178,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			dataAsString, err := json.Marshal(deviceData)
 			if err != nil {
 				s.logger.Error("error marshalling interface data", zap.Error(err))
-				return nil, err
+				continue
 			}
 			dbDevice := DbDevice{
 				Id:     uuid.NewString(),
@@ -188,7 +188,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			err = json.Unmarshal(dataAsString, &dbDevice)
 			if err != nil {
 				s.logger.Error("error marshalling interface data", zap.Error(err))
-				return nil, err
+				continue
 			}
 			statement, err := s.db.Prepare(
 				`
@@ -211,13 +211,13 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 		`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement", zap.Error(err))
-				return nil, err
+				continue
 			}
 			_, err = statement.Exec(dbDevice.Id, policy, dbDevice.Namespace, dbDevice.Hostname, dbDevice.Address, dbDevice.SerialNumber,
 				dbDevice.Model, dbDevice.State, dbDevice.Vendor, dataAsString)
 			if err != nil {
 				s.logger.Error("error during executing insert statement", zap.Error(err))
-				return nil, err
+				continue
 			}
 			devicesAdded = append(devicesAdded, dbDevice)
 		}
@@ -230,7 +230,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			dataAsString, err := json.Marshal(vlanData)
 			if err != nil {
 				s.logger.Error("error marshalling interface data", zap.Error(err))
-				return nil, err
+				continue
 			}
 			vlan := DbVlan{
 				Id:     uuid.NewString(),
@@ -240,7 +240,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			err = json.Unmarshal(dataAsString, &vlan)
 			if err != nil {
 				s.logger.Error("error marshalling interface data", zap.Error(err))
-				return nil, err
+				continue
 			}
 			statement, err := s.db.Prepare(
 				`
@@ -261,13 +261,13 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 		`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement", zap.Error(err))
-				return nil, err
+				continue
 			}
 			_, err = statement.Exec(vlan.Id, policy, vlan.Namespace, vlan.Hostname, vlan.Name,
 				vlan.State, dataAsString)
 			if err != nil {
 				s.logger.Error("error during executing insert statement", zap.Error(err))
-				return nil, err
+				continue
 			}
 			vlans = append(vlans, vlan)
 		}
