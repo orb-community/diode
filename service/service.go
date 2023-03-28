@@ -40,6 +40,7 @@ func New(logger *zap.Logger, config config.Config, db *sql.DB) Service {
 		logger:  logger,
 		config:  config,
 		channel: make(chan []byte),
+		db:      db,
 	}
 }
 
@@ -54,7 +55,7 @@ func (ds *DiodeService) Start() error {
 
 	service := storage.NewSqliteStorage(ds.db, ds.logger)
 
-	ds.otlpRecv = otlp.New(ds.asyncContext, ds.logger, &ds.config, service, ds.channel)
+	ds.otlpRecv = otlp.New(ds.asyncContext, ds.logger, &ds.config, ds.channel)
 	err = ds.otlpRecv.Start()
 	if err != nil {
 		return err
@@ -73,7 +74,7 @@ func (ds *DiodeService) Start() error {
 				for policy, v := range jsonData {
 					ds.logger.Info("policy name " + policy)
 					ds.logger.Info("data " + fmt.Sprintf("%v", v))
-					if err := service.Save(policy, jsonData); err != nil {
+					if _, err := service.Save(policy, jsonData); err != nil {
 						ds.logger.Error("error during storing", zap.String("policy", policy), zap.Error(err))
 					}
 				}
@@ -89,6 +90,9 @@ func (ds *DiodeService) Start() error {
 }
 
 func (ds *DiodeService) Stop() error {
-	ds.otlpRecv.Stop()
+	err := ds.otlpRecv.Stop()
+	if err != nil {
+		return err
+	}
 	return nil
 }

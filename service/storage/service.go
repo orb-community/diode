@@ -1,7 +1,7 @@
 package storage
 
 type Service interface {
-	Save(policy string, jsonData map[string]interface{}) error
+	Save(policy string, jsonData map[string]interface{}) (string, error)
 }
 
 type dbInterface struct {
