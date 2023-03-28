@@ -7,7 +7,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+
 	"github.com/orb-community/diode/service/storage"
 
 	"github.com/orb-community/diode/service/config"
@@ -56,7 +56,7 @@ func New(ctx context.Context, cancelFunc context.CancelFunc, logger *zap.Logger,
 	return &DiodeService{
 		logger:             logger,
 		config:             config,
-		channel:            make(chan []byte),
+		channel:            channel,
 		otlpRecv:           otlpRecv,
 		pusher:             pusher,
 		cancelAsyncContext: cancelFunc,
@@ -77,9 +77,7 @@ func (ds *DiodeService) Start() error {
 					ds.logger.Error("fail to unmarshal json", zap.Error(err))
 					break
 				}
-				for policy, v := range jsonData {
-					ds.logger.Info("policy name " + policy)
-					ds.logger.Info("data " + fmt.Sprintf("%v", v))
+				for policy, _ := range jsonData {
 					if _, err := ds.storageService.Save(policy, jsonData); err != nil {
 						ds.logger.Error("error during storing", zap.String("policy", policy), zap.Error(err))
 					}

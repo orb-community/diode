@@ -21,10 +21,14 @@ class LoggingOutputWorker(OutputWorker):
         """
         if not data["records"]:
             return
-        ret_val={data["topic"]:[]} 
-        for record in data["records"]:
-            ret_val[data["topic"]].append(record)
 
-        logger.warning(json.dumps(ret_val))
+        try:
+            ret_val={data["topic"]:[]}
+            for record in data["records"]:
+                ret_val[data["topic"]].append(record)
+
+            logger.warning(json.dumps(ret_val))
+        except:
+            logging.error("failed to parse")
 
 
