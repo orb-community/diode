@@ -106,8 +106,7 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 		device.Data.Site = &siteID
 	} else {
 		if nb.unkSiteID == invalid_id {
-			unkownObject := &NetboxObject{Name: unknown_name, Slug: unknown_slug}
-			if nb.unkSiteID, err = nb.createSite(&NetboxSite{*unkownObject, staging_status}, nb.placeholderTag); err != nil {
+			if nb.unkSiteID, err = nb.createSite(&NetboxSite{Name: unknown_name, Slug: unknown_slug, Status: staging_status}, nb.placeholderTag); err != nil {
 				return invalid_id, err
 			}
 		}
@@ -142,8 +141,7 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 		device.Data.DeviceType = &typeID
 	} else {
 		if nb.unkDtypeID == invalid_id {
-			unkownObject := &NetboxObject{Name: unknown_name, Slug: unknown_slug}
-			if nb.unkDtypeID, err = nb.createDeviceType(&NetboxDeviceType{nil, *unkownObject}, nb.placeholderTag); err != nil {
+			if nb.unkDtypeID, err = nb.createDeviceType(&NetboxDeviceType{Mfr: nil, Name: unknown_name, Slug: unknown_slug}, nb.placeholderTag); err != nil {
 				return invalid_id, err
 			}
 		}
