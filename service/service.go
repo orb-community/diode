@@ -6,7 +6,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/orb-community/diode/service/storage"
@@ -23,43 +22,50 @@ type Service interface {
 }
 
 type DiodeService struct {
-	db                 *sql.DB
 	logger             *zap.Logger
-	config             config.Config
+	config             *config.Config
 	channel            chan []byte
 	otlpRecv           otlp.Otlp
 	pusher             nb_pusher.Pusher
 	cancelAsyncContext context.CancelFunc
 	asyncContext       context.Context
+	storageService     storage.Service
 }
 
 var _ Service = (*DiodeService)(nil)
 
-func New(logger *zap.Logger, config config.Config, db *sql.DB) Service {
-	return &DiodeService{
-		logger:  logger,
-		config:  config,
-		channel: make(chan []byte),
-		db:      db,
+func New(ctx context.Context, cancelFunc context.CancelFunc, logger *zap.Logger, config *config.Config) (Service, error) {
+	pusher := nb_pusher.New(ctx, logger, config)
+	err := pusher.Start()
+	if err != nil {
+		cancelFunc()
+		return nil, err
 	}
+	channel := make(chan []byte)
+	otlpRecv := otlp.New(ctx, logger, config, channel)
+	err = otlpRecv.Start()
+	if err != nil {
+		cancelFunc()
+		return nil, err
+	}
+	service, err := storage.NewSqliteStorage(logger)
+	if err != nil {
+		cancelFunc()
+		return nil, err
+	}
+	return &DiodeService{
+		logger:             logger,
+		config:             config,
+		channel:            make(chan []byte),
+		otlpRecv:           otlpRecv,
+		pusher:             pusher,
+		cancelAsyncContext: cancelFunc,
+		asyncContext:       ctx,
+		storageService:     service,
+	}, nil
 }
 
 func (ds *DiodeService) Start() error {
-	ds.asyncContext, ds.cancelAsyncContext = context.WithCancel(context.WithValue(context.Background(), "routine", "async"))
-
-	ds.pusher = nb_pusher.New(ds.asyncContext, ds.logger, &ds.config)
-	err := ds.pusher.Start()
-	if err != nil {
-		return err
-	}
-
-	service := storage.NewSqliteStorage(ds.db, ds.logger)
-
-	ds.otlpRecv = otlp.New(ds.asyncContext, ds.logger, &ds.config, ds.channel)
-	err = ds.otlpRecv.Start()
-	if err != nil {
-		return err
-	}
 
 	go func() {
 		var jsonData map[string]interface{}
@@ -74,7 +80,7 @@ func (ds *DiodeService) Start() error {
 				for policy, v := range jsonData {
 					ds.logger.Info("policy name " + policy)
 					ds.logger.Info("data " + fmt.Sprintf("%v", v))
-					if _, err := service.Save(policy, jsonData); err != nil {
+					if _, err := ds.storageService.Save(policy, jsonData); err != nil {
 						ds.logger.Error("error during storing", zap.String("policy", policy), zap.Error(err))
 					}
 				}

@@ -10,11 +10,14 @@ import (
 type sqliteStorage struct {
 	logger *zap.Logger
 	db     *sql.DB
-	next   Service
 }
 
-func NewSqliteStorage(db *sql.DB, logger *zap.Logger) Service {
-	return sqliteStorage{db: db, logger: logger}
+func NewSqliteStorage(logger *zap.Logger) (Service, error) {
+	db, err := startSqliteDb(logger)
+	if err != nil {
+		return nil, err
+	}
+	return sqliteStorage{db: db, logger: logger}, nil
 }
 
 func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (id string, err error) {
@@ -29,7 +32,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (id 
 			id := uuid.NewString()
 			statement, err := s.db.Prepare("INSERT INTO interfaces (id, policy, interfaceData) VALUES (?,?,?)")
 			if err != nil {
-				s.logger.Error("error during preparing insert statementon interface", zap.Error(err))
+				s.logger.Error("error during preparing insert statement on interface", zap.Error(err))
 				continue
 			}
 			statement.Exec(id, policy, dataAsString)
@@ -50,7 +53,44 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (id 
 		s.logger.Error("error during preparing insert statement", zap.Error(err))
 		return "", err
 	}
-	statement.Exec(id, policy, dataAsString)
+	_, err = statement.Exec(id, policy, dataAsString)
+	if err != nil {
+		s.logger.Error("error during executing insert statement", zap.Error(err))
+		return "", err
+	}
 
-	return s.next.Save(policy, jsonData)
+	return id, nil
+}
+
+func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
+	db, err = sql.Open("sqlite3", ":memory")
+	if err != nil {
+		logger.Error("SQLite could not be initialized", zap.Error(err))
+		return nil, err
+	}
+
+	createInterfacesTableStatement, err := db.Prepare("CREATE TABLE IF NOT EXISTS interfaces (id TEXT PRIMARY KEY, policy TEXT, interfaceData TEXT )")
+	if err != nil {
+		logger.Error("error preparing interfaces statement", zap.Error(err))
+		return nil, err
+	}
+	_, err = createInterfacesTableStatement.Exec()
+	if err != nil {
+		logger.Error("error creating interfaces table", zap.Error(err))
+		return nil, err
+	}
+	logger.Debug("successfully created Interfaces table")
+	createDeviceTableStatement, err := db.Prepare("CREATE TABLE IF NOT EXISTS devices (id TEXT PRIMARY KEY, policy TEXT, deviceData TEXT )")
+	if err != nil {
+		logger.Error("error preparing devices statement ", zap.Error(err))
+		return nil, err
+	}
+	_, err = createDeviceTableStatement.Exec()
+	if err != nil {
+		logger.Error("error creating devices table", zap.Error(err))
+		return nil, err
+	}
+	logger.Debug("successfully created devices table")
+
+	return
 }

@@ -5,21 +5,20 @@ type Service interface {
 }
 
 type dbInterface struct {
-	Id        string
-	Policy    string
-	IfName    string
-	IfType    string
-	Namespace string
-	Hostname  string
-	Address   string
-	Vendor    string
-	Os        string
+	Id          string
+	Policy      string // id
+	Namespace   string // id
+	Hostname    string // id
+	NetboxRefId int64
+	IfName      string
+	IfType      string
 }
 
 type dbDevice struct {
 	Id        string
 	Policy    string
+	Type      string
 	Namespace string
 	Hostname  string
-	IpAddress string
+	Vendor    string
 }
