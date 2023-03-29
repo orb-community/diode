@@ -2,6 +2,9 @@ package storage
 
 type Service interface {
 	Save(policy string, jsonData map[string]interface{}) (interface{}, error)
+	UpdateInterface(id string, netboxId int64) (DbInterface, error)
+	UpdateDevice(id string, netboxId int64) (DbDevice, error)
+	UpdateVlan(id string, netboxId int64) (DbVlan, error)
 	GetInterfaceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInterface, error)
 	GetDevicesByPolicyAndNamespace(policy, namespace string) ([]DbDevice, error)
 	GetDeviceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) (DbDevice, error)
