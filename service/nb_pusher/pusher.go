@@ -67,7 +67,7 @@ func New(ctx context.Context, logger *zap.Logger, config *config.Config) Pusher 
 }
 
 func (nb *NetboxPusher) Start() error {
-	t := transport.New(nb.config.NetboxPusher.Endpoint, client.DefaultBasePath, []string{"http", "https"})
+	t := transport.New(nb.config.NetboxPusher.Endpoint, client.DefaultBasePath, []string{nb.config.NetboxPusher.Protocol})
 	t.DefaultAuthentication = transport.APIKeyAuth(
 		"Authorization",
 		"header",
