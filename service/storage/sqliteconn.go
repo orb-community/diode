@@ -126,9 +126,10 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 				continue
 			}
 			dbInterface := DbInterface{
-				Id:     uuid.NewString(),
-				Policy: policy,
-				Blob:   string(dataAsString),
+				Id:          uuid.NewString(),
+				Policy:      policy,
+				NetboxRefId: -1,
+				Blob:        string(dataAsString),
 			}
 			err = json.Unmarshal(dataAsString, &dbInterface)
 			if err != nil {
@@ -183,9 +184,10 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 				continue
 			}
 			dbDevice := DbDevice{
-				Id:     uuid.NewString(),
-				Policy: policy,
-				Blob:   string(dataAsString),
+				Id:          uuid.NewString(),
+				Policy:      policy,
+				NetboxRefId: -1,
+				Blob:        string(dataAsString),
 			}
 			err = json.Unmarshal(dataAsString, &dbDevice)
 			if err != nil {
@@ -237,9 +239,10 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 				continue
 			}
 			vlan := DbVlan{
-				Id:     uuid.NewString(),
-				Policy: policy,
-				Blob:   string(dataAsString),
+				Id:          uuid.NewString(),
+				Policy:      policy,
+				NetboxRefId: -1,
+				Blob:        string(dataAsString),
 			}
 			err = json.Unmarshal(dataAsString, &vlan)
 			if err != nil {
