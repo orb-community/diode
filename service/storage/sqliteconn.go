@@ -141,10 +141,10 @@ func (s sqliteStorage) UpdateInterface(id string, netboxId int64) (DbInterface, 
 
 func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error) {
 	_, err := s.db.Exec(`
-	UPDATE device SET netbox_id = $1 WHERE id = $2
+	UPDATE devices SET netbox_id = $1 WHERE id = $2
 	`, netboxId, id)
 	if err != nil {
-		s.logger.Error("error updating interface", zap.Error(err))
+		s.logger.Error("error updating devices", zap.Error(err))
 		return DbDevice{}, err
 	}
 	selectResult := s.db.QueryRow(`
@@ -156,7 +156,7 @@ func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error)
 	err = selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.Address, &device.SerialNumber,
 		&device.Model, &device.State, &device.Vendor, &device.NetboxRefId, &device.Blob)
 	if err != nil {
-		s.logger.Error("error parsing to struct interface", zap.Error(err))
+		s.logger.Error("error parsing to struct devices", zap.Error(err))
 		return DbDevice{}, err
 	}
 	return device, nil
@@ -164,10 +164,10 @@ func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error)
 
 func (s sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
 	_, err := s.db.Exec(`
-	UPDATE vlan SET netbox_id = $1 WHERE id = $2
+	UPDATE vlans SET netbox_id = $1 WHERE id = $2
 	`, netboxId, id)
 	if err != nil {
-		s.logger.Error("error updating interface", zap.Error(err))
+		s.logger.Error("error updating vlan", zap.Error(err))
 		return DbVlan{}, err
 	}
 	selectResult := s.db.QueryRow(`
@@ -179,7 +179,7 @@ func (s sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
 	err = selectResult.Scan(&vlan.Id, &vlan.Policy, &vlan.Namespace, &vlan.Hostname,
 		&vlan.Name, &vlan.State, &vlan.NetboxRefId, &vlan.Blob)
 	if err != nil {
-		s.logger.Error("error parsing to struct interface", zap.Error(err))
+		s.logger.Error("error parsing to struct vlan", zap.Error(err))
 		return DbVlan{}, err
 	}
 	return vlan, nil
