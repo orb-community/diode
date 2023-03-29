@@ -179,16 +179,19 @@ func (nb *NetboxPusher) CreateInterface(j []byte) (int64, error) {
 	}
 
 	ifs := dcim.NewDcimInterfacesCreateParams()
+	var data models.WritableInterface
 
-	ifs.Data.Device = &interfaceData.DeviceID
-	ifs.Data.Name = &interfaceData.Name
-	ifs.Data.Speed = &interfaceData.Speed
-	ifs.Data.Mtu = &interfaceData.Mtu
-	ifs.Data.MacAddress = &interfaceData.MacAddress
-	ifs.Data.Enabled = InterfaceStateMap[interfaceData.State]
-	ifs.Data.Type = &unknown_interface_type
-	ifs.Data.Description = interfaceData.Type
+	data.Device = &interfaceData.DeviceID
+	data.Name = &interfaceData.Name
+	data.Speed = &interfaceData.Speed
+	data.Mtu = &interfaceData.Mtu
+	data.MacAddress = &interfaceData.MacAddress
+	data.Enabled = InterfaceStateMap[interfaceData.State]
+	data.Type = &unknown_interface_type
+	data.Description = interfaceData.Type
+	data.Tags = nb.discoveryTag
 
+	ifs.Data = &data
 	var created *dcim.DcimInterfacesCreateCreated
 	created, err = nb.client.Dcim.DcimInterfacesCreate(ifs, nil)
 	if err != nil {
