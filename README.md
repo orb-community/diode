@@ -4,11 +4,56 @@ This is a basic set of instructions on how to get started using Diode on your lo
 
 ## Requirements
 
+### Tools
+
 You'll need a recent installation of *Docker Community Edition* (or compatible) and *docker-compose*.
 
 You may also need to have [`Git` installed](https://git-scm.com/downloads).
 
 And finally you should be working on a Linux or macOS computer. Diode should technically also work on *Docker for Windows* (with Linux backend) or on the  *Windows Subsystem for Linux (WSL)*, but this guide does not cover this (yet).
+
+> ❗️ Warning for M1 Mac users
+> 
+> Discovery currently does not work on M1 devices. We're working on a fix for this.
+
+### NetBox Instance
+
+You will also need an instance of NetBox that the discovery results can be pushed into. The easiest way to do this if you don't already have a NetBox instance running is to use [NetBox Docker](https://github.com/netbox-community/netbox-docker).
+
+You'll clone the ``netbox-docker`` repo, and make some small changes to the repo to get everything set-up:
+
+```
+git clone https://github.com/netbox-community/netbox-docker.git
+cd netbox-docker
+mv docker-compose.override.yml.example docker-compose-override.yml
+```
+
+Now edit ``docker-compose-override.yml`` to include your desired super user settings to look something like this:
+
+```
+version: '3.7'
+services:
+  netbox:
+    ports:
+      - "8000:8080"
+    # If you want the Nginx unit status page visible from the
+    # outside of the container add the following port mapping:
+    # - "8001:8081"
+    # healthcheck:
+      # Time for which the health check can fail after the container is started.
+      # This depends mostly on the performance of your database. On the first start,
+      # when all tables need to be created the start_period should be higher than on
+      # subsequent starts. For the first start after major version upgrades of NetBox
+      # the start_period might also need to be set higher.
+      # Default value in our docker-compose.yml is 60s
+      # start_period: 90s
+    environment:
+      SKIP_SUPERUSER: "false"
+      SUPERUSER_API_TOKEN: "YOUR 41 CHARACTER API TOKEN"
+      SUPERUSER_EMAIL: "YOUR EMAIL"
+      SUPERUSER_NAME: "YOUR SUPERUSER_USERNAME"
+      SUPERUSER_PASSWORD: "YOUR SUPERUSER_PASSWORD"
+```
 
 ## Diode configuration files
 
