@@ -20,6 +20,7 @@ type BaseSvcConfig struct {
 type NetboxPusherConfig struct {
 	Endpoint string `mapstructure:"endpoint"`
 	Token    string `mapstructure:"token"`
+	Protocol string `mapstructure:"protocol"`
 }
 
 type OtlpReceiverConfig struct {
@@ -68,6 +69,7 @@ func loadNetboxPusherConfig(prefix string) NetboxPusherConfig {
 
 	cfg.SetDefault("endpoint", "")
 	cfg.SetDefault("token", "")
+	cfg.SetDefault("protocol", "https")
 
 	cfg.AllowEmptyEnv(true)
 	cfg.AutomaticEnv()
