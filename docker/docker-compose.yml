@@ -5,6 +5,7 @@ services:
 
   service:
     image: orbcommunity/diode-service:develop
+    network_mode: host
     ports:
       - "4317:4317"
     environment:
@@ -14,7 +15,7 @@ services:
 
   agent:
     image: orbcommunity/diode-agent:develop
-    network_mode: "host"
+    network_mode: host
     volumes:
       - ./:/opt/diode/
     command: run -c /opt/diode/config.yml
