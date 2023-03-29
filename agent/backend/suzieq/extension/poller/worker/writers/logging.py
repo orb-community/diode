@@ -1,7 +1,7 @@
 """
 This module contains the logic of the writer for the 'logging' mode
 """
-import logging
+import logging, json
 
 from suzieq.poller.worker.writers.output_worker import OutputWorker
 
@@ -22,7 +22,13 @@ class LoggingOutputWorker(OutputWorker):
         if not data["records"]:
             return
 
-        for record in data["records"]:
-            logger.warning(f'topic: {data["topic"]}, record: {record}')
+        try:
+            ret_val={data["topic"]:[]}
+            for record in data["records"]:
+                ret_val[data["topic"]].append(record)
+
+            logger.warning(json.dumps(ret_val))
+        except:
+            logging.error("failed to parse")
 
 

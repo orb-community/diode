@@ -1,0 +1,149 @@
+name: diode-develop
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    branches: [ develop ]
+  push:
+    branches: [ develop ]
+
+jobs:
+
+  pre-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+
+      - name: Generate ref tag (develop)
+        run: |
+          echo "REF_TAG=develop" >> $GITHUB_ENV
+
+      - name: Append suffix on VERSION file for develop build
+        run: |
+          echo "`cat ${{github.workspace}}/VERSION`-${{ env.REF_TAG }}" > VERSION
+
+      - name: Build orb agent (go build only)
+        run: make agent_bin
+
+  package-agent:
+    if: ${{ github.event_name != 'pull_request' }} 
+    needs: [ pre-build ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Generate ref tag (develop)
+        run: |
+          echo "REF_TAG=develop" >> $GITHUB_ENV
+
+      - name: Append suffix on VERSION file for develop build
+        run: |
+          echo "`cat ${{github.workspace}}/VERSION`-${{ env.REF_TAG }}" > VERSION
+
+      - name: Get VERSION
+        run: |
+          echo "VERSION=`cat ${{github.workspace}}/VERSION`" >> $GITHUB_ENV
+
+      - name: Debug version
+        run: echo ${{ env.VERSION }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.ORB_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.ORB_DOCKERHUB_TOKEN }}
+
+      - name: Build diode-agent
+        shell: bash
+        env:
+          IMAGE_NAME: orbcommunity/diode-agent
+        run: |
+            make agent
+            make agent_debug
+
+      - name: Push agent container
+        run: |
+          docker push -a orbcommunity/diode-agent
+          
+  package-service:
+    if: ${{ github.event_name != 'pull_request' }} 
+    needs: [ pre-build ]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ env.VERSION }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Generate ref tag (develop)
+        run: |
+          echo "REF_TAG=develop" >> $GITHUB_ENV
+
+      - name: Append suffix on VERSION file for develop build
+        run: |
+          echo "`cat ${{github.workspace}}/VERSION`-${{ env.REF_TAG }}" > VERSION
+
+      - name: Get VERSION
+        run: |
+          echo "VERSION=`cat ${{github.workspace}}/VERSION`" >> $GITHUB_ENV
+
+      - name: Debug version
+        run: echo ${{ env.VERSION }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.ORB_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.ORB_DOCKERHUB_TOKEN }}
+
+      - name: Build diode-agent
+        shell: bash
+        run: |
+            make SERVICE=service build_docker
+
+      - name: Push agent container
+        run: |
+          docker push -a orbcommunity/diode-service
+          
+  deploy-diode-service:
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: [ package-service ]
+    name: Deploy diode service on staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Preparing file for stg
+        run: |
+          rm ./docker/docker-compose.yml
+          mv ./docker/docker-compose.yml.tpl ./docker/docker-compose.yml
+          IMAGE_TAG=${{ needs.package-service.outputs.version }}-$(git rev-parse --short HEAD)
+          sed -i -e "s/IMAGE_TAG/$IMAGE_TAG/g" ./docker/docker-compose.yml
+          sed -i -e "s/NETBOX_API_HOST/${{ secrets.NETBOX_API_HOST }}/g" ./docker/docker-compose.yml
+          sed -i -e "s/NETBOX_API_TOKEN/${{ secrets.NETBOX_API_TOKEN }}/g" ./docker/docker-compose.yml
+
+      - name: Update diode-service host files
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.DIODELAB_HOST }}
+          username: ${{ secrets.DIODELAB_USERNAME }}
+          key: ${{ secrets.DIODELAB_SSH_KEY }}
+          port: 22
+          source: "docker/docker-compose.yml"
+          target: "/storage-docker/diode-service"
+            
+      - name: Deploy diode-service
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.DIODELAB_HOST }}
+          username: ${{ secrets.DIODELAB_USERNAME }}
+          key: ${{ secrets.DIODELAB_SSH_KEY }}
+          port: 22
+          script: |
+            cd /storage-docker/diode-service/docker
+            sudo docker-compose --project-name=diode up -d

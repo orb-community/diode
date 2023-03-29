@@ -1,0 +1,19 @@
+version: '3.7'
+
+# Docker Services
+services:
+
+  service:
+    image: orbcommunity/diode-service:develop
+    network_mode: host
+    environment:
+      - DIODE_SERVICE_NETBOX_ENDPOINT=${NETBOX_API_HOST}
+      - DIODE_SERVICE_NETBOX_TOKEN=${NETBOX_API_TOKEN}
+      - DIODE_SERVICE_NETBOX_PROTOCOL=${NETBOX_API_PROTOCOL}
+
+  agent:
+    image: orbcommunity/diode-agent:develop
+    network_mode: host
+    volumes:
+      - ./:/opt/diode/
+    command: run -c /opt/diode/config.yml

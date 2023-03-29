@@ -1,0 +1,6 @@
+data-directory: /tmp
+poller:
+  logging-level: WARNING
+  period: 30
+  connect-timeout: 15
+  log-stdout: True

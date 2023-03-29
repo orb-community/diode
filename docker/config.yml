@@ -1,0 +1,23 @@
+diode:
+  config:
+    output_type: otlp
+    output_path: "127.0.0.1:4317"
+  policies:      
+    discovery_1:
+      kind: discovery
+      backend: suzieq
+      data:     
+        inventory: 
+          sources:
+            - name: default_inventory
+              hosts:
+                - url: ssh://192.168.0.4:2021 username=user password=password
+          devices:
+            - name: default_devices
+              transport: ssh
+              ignore-known-hosts: true
+              slow-host: true
+          namespaces:
+            - name: default_namespace
+              source: default_inventory
+              device: default_devices
