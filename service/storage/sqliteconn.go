@@ -117,8 +117,7 @@ func (s sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace
 
 func (s sqliteStorage) UpdateInterface(id string, netboxId int64) (DbInterface, error) {
 	_, err := s.db.Exec(`
-	UPDATE interfaces SET netbox_id = $1 WHERE id = $2
-	`, netboxId, id)
+	UPDATE interfaces SET netbox_id = $1 WHERE id = $2`, netboxId, id)
 	if err != nil {
 		s.logger.Error("error updating interface", zap.Error(err))
 		return DbInterface{}, err
@@ -141,17 +140,15 @@ func (s sqliteStorage) UpdateInterface(id string, netboxId int64) (DbInterface, 
 
 func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error) {
 	_, err := s.db.Exec(`
-	UPDATE devices SET netbox_id = $1 WHERE id = $2
-	`, netboxId, id)
+	UPDATE devices SET netbox_id = $1 WHERE id = $2`, netboxId, id)
 	if err != nil {
 		s.logger.Error("error updating devices", zap.Error(err))
 		return DbDevice{}, err
 	}
 	selectResult := s.db.QueryRow(`
-		SELECT (id,policy, namespace, hostname, address, serial_number, model, state, vendor, netbox_id, json_data) 
-		FROM interfaces
-		WHERE id = $1
-	`, id)
+		SELECT (id, policy, namespace, hostname, address, serial_number, model, state, vendor, netbox_id, json_data) 
+		FROM devices
+		WHERE id = $1`, id)
 	var device DbDevice
 	err = selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.Address, &device.SerialNumber,
 		&device.Model, &device.State, &device.Vendor, &device.NetboxRefId, &device.Blob)
@@ -164,17 +161,15 @@ func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error)
 
 func (s sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
 	_, err := s.db.Exec(`
-	UPDATE vlans SET netbox_id = $1 WHERE id = $2
-	`, netboxId, id)
+	UPDATE vlans SET netbox_id = $1 WHERE id = $2`, netboxId, id)
 	if err != nil {
 		s.logger.Error("error updating vlan", zap.Error(err))
 		return DbVlan{}, err
 	}
 	selectResult := s.db.QueryRow(`
 		SELECT (id, policy, namespace, hostname, name, state, netbox_id, json_data) 
-		FROM vlan
-		WHERE id = $1
-	`, id)
+		FROM vlans
+		WHERE id = $1`, id)
 	var vlan DbVlan
 	err = selectResult.Scan(&vlan.Id, &vlan.Policy, &vlan.Namespace, &vlan.Hostname,
 		&vlan.Name, &vlan.State, &vlan.NetboxRefId, &vlan.Blob)
@@ -208,23 +203,8 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			}
 			statement, err := s.db.Prepare(`
 			INSERT INTO interfaces 
-			    (
-			     id, 
-				 policy, 
-				 namespace,
-				 hostname,
-				 name,
-				 admin_state,
-				 mtu,
-				 speed,
-				 mac_address,
-				 if_type, 
-				 json_data
-			    ) VALUES 
-				  (
-				   $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
-				  )
-			`)
+			    (id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, json_data) 
+			VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 )`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement on interface", zap.Error(err))
 				continue
@@ -267,22 +247,8 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			statement, err := s.db.Prepare(
 				`
 				INSERT INTO devices 
-					(
-					id,
-					policy, 
-					namespace,
-					hostname,
-					address,
-					serial_number,
-					model,
-					state,
-					vendor, 
-					json_data) 
-				VALUES 
-					(
-					  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-					)
-		`)
+					(id,policy, namespace,hostname,address,serial_number,model,state,vendor, json_data) 
+				VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement", zap.Error(err))
 				continue
@@ -320,22 +286,10 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 				continue
 			}
 			statement, err := s.db.Prepare(
-				`
-				INSERT INTO vlans 
-					(
-						id,
-						policy,
-						namespace,
-						hostname,
-						name,
-						state,
-						json_data
-					)
+				`INSERT INTO vlans 
+					( id, policy, namespace, hostname, name, state, json_data)
 				VALUES 
-					(
-					  $1, $2, $3, $4, $5, $6, $7
-					)
-		`)
+					( $1, $2, $3, $4, $5, $6, $7 )`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement", zap.Error(err))
 				continue
@@ -366,8 +320,8 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 
-	createInterfacesTableStatement, err := db.Prepare(`
-		CREATE TABLE IF NOT EXISTS interfaces 
+	createInterfacesTableStatement, err := db.Prepare(
+		`CREATE TABLE IF NOT EXISTS interfaces 
 		( id TEXT PRIMARY KEY, 
 		 policy TEXT, 
 		 namespace TEXT,
@@ -379,8 +333,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		 mac_address TEXT,
 		 if_type TEXT,
 		 netbox_id INTEGER NULL, 
-		 json_data TEXT )
-    `)
+		 json_data TEXT )`)
 	if err != nil {
 		logger.Error("error preparing interfaces statement", zap.Error(err))
 		return nil, err
@@ -391,8 +344,8 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 	logger.Debug("successfully created Interfaces table")
-	createDeviceTableStatement, err := db.Prepare(`
-		CREATE TABLE IF NOT EXISTS devices 
+	createDeviceTableStatement, err := db.Prepare(
+		`CREATE TABLE IF NOT EXISTS devices 
 		(
 		    id TEXT PRIMARY KEY, 
 		 	policy TEXT, 
@@ -405,8 +358,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		 	vendor TEXT,
 		 	netbox_id INTEGER NULL, 
 		    json_data TEXT 
-		)
-    `)
+		)`)
 	if err != nil {
 		logger.Error("error preparing devices statement ", zap.Error(err))
 		return nil, err
@@ -418,8 +370,8 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 	}
 	logger.Debug("successfully created devices table")
 
-	createVlansTableStatement, err := db.Prepare(`
-	CREATE TABLE IF NOT EXISTS vlans
+	createVlansTableStatement, err := db.Prepare(
+		`CREATE TABLE IF NOT EXISTS vlans
 	(
 	    id TEXT PRIMARY KEY,
 	    policy TEXT,
@@ -439,9 +391,8 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		logger.Error("error creating vlans table", zap.Error(err))
 		return nil, err
 	}
-	constraint1TableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX IF NOT EXISTS interfaces_uniques ON interfaces(policy, namespace, hostname, name)
-	`)
+	constraint1TableStatement, err := db.Prepare(
+		`CREATE UNIQUE INDEX IF NOT EXISTS interfaces_uniques ON interfaces(policy, namespace, hostname, name)`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
 		return nil, err
@@ -451,9 +402,8 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		logger.Error("error constraints execution", zap.Error(err))
 		return nil, err
 	}
-	constraint2TableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX IF NOT EXISTS devices_uniques ON devices(policy, namespace, hostname)
-	`)
+	constraint2TableStatement, err := db.Prepare(
+		`CREATE UNIQUE INDEX IF NOT EXISTS devices_uniques ON devices(policy, namespace, hostname)`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
 		return nil, err
@@ -463,9 +413,8 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		logger.Error("error constraints execution", zap.Error(err))
 		return nil, err
 	}
-	constraint3TableStatement, err := db.Prepare(`
-		CREATE UNIQUE INDEX IF NOT EXISTS vlans_uniques ON vlans(policy, namespace, hostname, name)
-	`)
+	constraint3TableStatement, err := db.Prepare(
+		`CREATE UNIQUE INDEX IF NOT EXISTS vlans_uniques ON vlans(policy, namespace, hostname, name)`)
 	if err != nil {
 		logger.Error("error constraints statement ", zap.Error(err))
 		return nil, err
