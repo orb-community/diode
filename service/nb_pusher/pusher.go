@@ -183,7 +183,9 @@ func (nb *NetboxPusher) CreateInterface(j []byte) (int64, error) {
 
 	data.Device = &interfaceData.DeviceID
 	data.Name = &interfaceData.Name
-	data.Speed = &interfaceData.Speed
+	data.Vdcs = []int64{}
+	data.TaggedVlans = []int64{}
+	data.WirelessLans = []int64{}
 	data.Mtu = &interfaceData.Mtu
 	data.MacAddress = &interfaceData.MacAddress
 	data.Enabled = InterfaceStateMap[interfaceData.State]
@@ -197,7 +199,7 @@ func (nb *NetboxPusher) CreateInterface(j []byte) (int64, error) {
 	if err != nil {
 		return invalid_id, err
 	}
-
+	nb.logger.Info("interface created", zap.String("interface", interfaceData.Name))
 	return created.Payload.ID, nil
 }
 

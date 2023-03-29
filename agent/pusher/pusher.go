@@ -141,10 +141,10 @@ func (s *pusherImpl) scrapeToHttp() error {
 
 func (s *pusherImpl) scrapeToFile() error {
 	go func() {
-		var jsonData map[string]interface{}
 		for {
 			select {
 			case data := <-s.channel:
+				var jsonData map[string]interface{}
 				err := json.Unmarshal(data, &jsonData)
 				if err != nil {
 					s.logger.Error("pusher - fail to unmarshal json", zap.Error(err))
@@ -191,16 +191,16 @@ func (s *pusherImpl) scrapeToOtlp() error {
 		s.logger.Error("pusher - fail to start log exporter", zap.Error(err))
 		return err
 	}
-	logs := plog.NewLogs()
-	res := logs.ResourceLogs().AppendEmpty()
-	scope := res.ScopeLogs().AppendEmpty()
-	record := scope.LogRecords().AppendEmpty()
-	record.SetSeverityNumber(plog.SeverityNumberTrace)
 
 	go func() {
 		for {
 			select {
 			case data := <-s.channel:
+				logs := plog.NewLogs()
+				res := logs.ResourceLogs().AppendEmpty()
+				scope := res.ScopeLogs().AppendEmpty()
+				record := scope.LogRecords().AppendEmpty()
+				record.SetSeverityNumber(plog.SeverityNumberTrace)
 				err = record.Body().FromRaw(data)
 				if err != nil {
 					s.logger.Error("pusher - fail to add log body", zap.Error(err))
