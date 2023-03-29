@@ -6,8 +6,6 @@ services:
   service:
     image: orbcommunity/diode-service:develop
     network_mode: host
-    ports:
-      - "4317:4317"
     environment:
       - DIODE_SERVICE_NETBOX_ENDPOINT=${NETBOX_API_HOST}
       - DIODE_SERVICE_NETBOX_TOKEN=${NETBOX_API_TOKEN}
