@@ -19,7 +19,7 @@ type Translator interface {
 	Translate(interface{}) error
 }
 
-type SuzieTranslate struct {
+type SuzieQTranslate struct {
 	ctx    context.Context
 	logger *zap.Logger
 	config *config.Config
@@ -40,10 +40,10 @@ type deviceJsonReturn struct {
 }
 
 func New(ctx context.Context, logger *zap.Logger, config *config.Config, db *storage.Service, pusher *nb_pusher.Pusher) Translator {
-	return &SuzieTranslate{ctx: ctx, logger: logger, config: config, db: db, pusher: pusher}
+	return &SuzieQTranslate{ctx: ctx, logger: logger, config: config, db: db, pusher: pusher}
 }
 
-func (st *SuzieTranslate) Translate(data interface{}) error {
+func (st *SuzieQTranslate) Translate(data interface{}) error {
 	if devices, ok := data.([]storage.DbDevice); ok {
 		for _, device := range devices {
 			if len(device.Id) == 0 {
@@ -79,7 +79,7 @@ func (st *SuzieTranslate) Translate(data interface{}) error {
 	return errors.New("no valid translatable data found")
 }
 
-func (st *SuzieTranslate) translateDevice(device *storage.DbDevice) ([]byte, error) {
+func (st *SuzieQTranslate) translateDevice(device *storage.DbDevice) ([]byte, error) {
 	var ret deviceJsonReturn
 	ret.Name = device.Hostname
 	ret.Status = device.State
@@ -89,10 +89,10 @@ func (st *SuzieTranslate) translateDevice(device *storage.DbDevice) ([]byte, err
 	return json.Marshal(ret)
 }
 
-func (st *SuzieTranslate) translateInterface(ifs *storage.DbInterface) ([]byte, error) {
+func (st *SuzieQTranslate) translateInterface(ifs *storage.DbInterface) ([]byte, error) {
 	return nil, errors.New("translate for interface data not implemented yet")
 }
 
-func (st *SuzieTranslate) translateVlan(vlan *storage.DbVlan) ([]byte, error) {
+func (st *SuzieQTranslate) translateVlan(vlan *storage.DbVlan) ([]byte, error) {
 	return nil, errors.New("translate for vlan data not implemented yet")
 }
