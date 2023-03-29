@@ -16,6 +16,10 @@ And finally you should be working on a Linux or macOS computer. Diode should tec
 > 
 > Discovery currently does not work on M1 devices. We're working on a fix for this.
 
+> ❗️ Docker and Docker Compose versions
+> 
+> It is better to update your Docker and Docker Compose to the latest versions before testing. Also note that on some systems the ``docker-compose`` and ``docker compose`` commands can report different versions so double check which one you're using!
+
 ### NetBox Instance
 
 You will also need an instance of NetBox that the discovery results can be pushed into. The easiest way to do this if you don't already have a NetBox instance running is to use [NetBox Docker](https://github.com/netbox-community/netbox-docker).
