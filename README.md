@@ -59,7 +59,7 @@ services:
       SUPERUSER_PASSWORD: "YOUR SUPERUSER_PASSWORD"
 ```
 
-You can now start ``netbox-docker`` using ``docker-compose``. Note that you'll need to wait for the NetBox service to become healthy which you can monitor with ``docker-compose ps``. Once healthy you can log in to your NetBox instance on ``127.0.0.1:8000``.
+You can now start ``netbox-docker`` using ``docker-compose``. Note that you'll need to wait for the NetBox service to become healthy which you can monitor with ``docker-compose ps``. Once healthy you can log in to your NetBox instance on ``127.0.0.1:8000`` using the super user credentials you entered above.
 
 ```bash
 docker-compose up
