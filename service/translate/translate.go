@@ -77,7 +77,9 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				}
 				continue
 			}
-			id, err := (*st.pusher).CreateDevice(j)
+==== BASE ====
+			_, err = (*st.pusher).CreateDevice(j)
+==== BASE ====
 			if err != nil {
 				if errs != nil {
 					errs = fmt.Errorf("%v; %v", errs, err)
@@ -102,6 +104,9 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 					errs = err
 				}
 				continue
+			}
+			if err := st.checkExistingInterfaces(&newDevice); err != nil {
+				return err
 			}
 		}
 		return errs
