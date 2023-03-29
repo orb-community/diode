@@ -41,7 +41,7 @@ type suzieqBackend struct {
 var _ backend.Backend = (*suzieqBackend)(nil)
 
 func New() backend.Backend {
-	return &suzieqBackend{channel: make(chan string, 4)}
+	return &suzieqBackend{channel: make(chan string, 8)}
 }
 
 func (s *suzieqBackend) getProcRunningStatus() (backend.RunningStatus, string, error) {
