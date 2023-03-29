@@ -42,7 +42,7 @@ func New(ctx context.Context, cancelFunc context.CancelFunc, logger *zap.Logger,
 		cancelFunc()
 		return nil, err
 	}
-	channel := make(chan []byte)
+	channel := make(chan []byte, 16)
 	otlpRecv := otlp.New(ctx, logger, config, channel)
 	err = otlpRecv.Start()
 	if err != nil {

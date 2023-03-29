@@ -55,7 +55,7 @@ func New(logger *zap.Logger, c config.Config) (Pusher, error) {
 		}
 	}
 	return &pusherImpl{logger: logger, outputType: c.DiodeAgent.DiodeConfig.OutputType, outputPath: c.DiodeAgent.DiodeConfig.OutputPath,
-		outputAuth: c.DiodeAgent.DiodeConfig.OutputAuth, channel: make(chan []byte)}, nil
+		outputAuth: c.DiodeAgent.DiodeConfig.OutputAuth, channel: make(chan []byte, 16)}, nil
 }
 
 func (s *pusherImpl) GetChannel() chan []byte {
