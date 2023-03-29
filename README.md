@@ -25,7 +25,7 @@ You'll clone the ``netbox-docker`` repo, and make some small changes to the repo
 ```
 git clone https://github.com/netbox-community/netbox-docker.git
 cd netbox-docker
-mv docker-compose.override.yml.example docker-compose-override.yml
+mv docker-compose.override.yml.example docker-compose.override.yml
 ```
 
 Now edit ``docker-compose-override.yml`` to include your desired super user settings to look something like this:
