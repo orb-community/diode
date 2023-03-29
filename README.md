@@ -28,7 +28,7 @@ cd netbox-docker
 mv docker-compose.override.yml.example docker-compose.override.yml
 ```
 
-Now edit ``docker-compose-override.yml`` to include your desired super user settings to look something like this:
+Now edit ``docker-compose.override.yml`` to include your desired super user settings to look something like this:
 
 ```
 version: '3.7'
