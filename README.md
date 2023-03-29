@@ -22,7 +22,7 @@ You will also need an instance of NetBox that the discovery results can be pushe
 
 You'll clone the ``netbox-docker`` repo, and make some small changes to the repo to get everything set-up:
 
-```
+```bash
 git clone https://github.com/netbox-community/netbox-docker.git
 cd netbox-docker
 mv docker-compose.override.yml.example docker-compose.override.yml
@@ -57,7 +57,7 @@ services:
 
 You can now start ``netbox-docker`` using ``docker-compose``. Note that you'll need to wait for the NetBox service to become healthy which you can monitor with ``docker-compose ps``. Once healthy you can log in to your NetBox instance on ``127.0.0.1:8000``.
 
-```
+```bash
 docker-compose up
 ```
 
@@ -71,10 +71,9 @@ Diode requires two configuration files to execute successfully:
 We recommend placing both configuration files in the same directory and running all commands from this common directory. For example:
 
 ```bash
-~ % cd ~
-~ % mkdir diode
-~ % cd diode
-~/diode 
+cd ~
+mkdir diode
+cd diode
 ```
 
 ### Getting the default Diode `docker-compose.yml`
@@ -82,7 +81,7 @@ We recommend placing both configuration files in the same directory and running 
 You can get the default Diode `docker-compose.yml` file by downloading this example from the Diode repository:
 
 ```bash
-~/diode % curl https://raw.githubusercontent.com/orb-community/diode/develop/docker/docker-compose.yml -o docker-compose.yml
+curl https://raw.githubusercontent.com/orb-community/diode/develop/docker/docker-compose.yml -o docker-compose.yml
 ```
 
 ### Getting a template `config.yml`
@@ -90,7 +89,7 @@ You can get the default Diode `docker-compose.yml` file by downloading this exam
 You can get a template of the `config.yml` file by downloading this example from the Diode repository:
 
 ```bash
-~/diode % curl https://raw.githubusercontent.com/orb-community/diode/develop/docker/config.yml -o config.yml
+curl https://raw.githubusercontent.com/orb-community/diode/develop/docker/config.yml -o config.yml
 ```
 
 ### Updating the `config.yml` for your discovery
@@ -131,13 +130,13 @@ The `inventory:` section of the `config.yml` follows the SuzieQ Inventory File F
 Before running Diode, you should set the `NETBOX_API_HOST`, `NETBOX_API_TOKEN` and `NETBOX_API_PROTOCOL` (`http` or `https`) environment variables to send the discovery output to the correct NetBox instance.
 
 ```bash
-~/diode % export NETBOX_API_HOST=my.netbox.instance:8000
-~/diode % export NETBOX_API_TOKEN=123456789ABCDEF
-~/diode % export NETBOX_API_PROTOCOL=http
+export NETBOX_API_HOST=my.netbox.instance:8000
+export NETBOX_API_TOKEN=123456789ABCDEF
+export NETBOX_API_PROTOCOL=http
 ```
 
 You can now run Diode by executing the following command:
 
 ```bash
-~/diode % docker compose up
+docker compose up
 ```
