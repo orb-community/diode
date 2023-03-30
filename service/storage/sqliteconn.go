@@ -50,6 +50,7 @@ func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, names
 			s.logger.Error("failed to parse ip_addresses", zap.Error(err))
 			return nil, err
 		}
+		iface.IpAddresses = ipAddresses
 		interfaces = append(interfaces, iface)
 	}
 
