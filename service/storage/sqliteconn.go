@@ -26,7 +26,7 @@ func NewSqliteStorage(logger *zap.Logger) (Service, error) {
 
 func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInterface, error) {
 	selectResult, err := s.db.Query(`
-		SELECT id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, json_data
+		SELECT id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, ip_addresses, json_data
 		FROM interfaces
 		WHERE policy = $1 AND namespace = $2 AND hostname = $3
 	`, policy, namespace, hostname)
@@ -35,14 +35,22 @@ func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, names
 		return nil, err
 	}
 	var interfaces []DbInterface
+	var ipsAsString string
 	for selectResult.Next() {
 		var iface DbInterface
 		err := selectResult.Scan(&iface.Id, &iface.Policy, &iface.Namespace, &iface.Hostname, &iface.Name, &iface.AdminState,
-			&iface.Mtu, &iface.Speed, &iface.MacAddress, &iface.IfType, &iface.NetboxRefId, &iface.Blob)
+			&iface.Mtu, &iface.Speed, &iface.MacAddress, &iface.IfType, &iface.NetboxRefId, &ipsAsString, &iface.Blob)
 		if err != nil {
 			s.logger.Error("failed to create iface struct", zap.Error(err))
 			return nil, err
 		}
+		var ipAddresses []IpAddress
+		err = json.Unmarshal([]byte(ipsAsString), &ipAddresses)
+		if err != nil {
+			s.logger.Error("failed to parse ip_addresses", zap.Error(err))
+			return nil, err
+		}
+		iface.IpAddresses = ipAddresses
 		interfaces = append(interfaces, iface)
 	}
 
@@ -184,130 +192,164 @@ func (s sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
 func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (stored interface{}, err error) {
 	ifData, ok := jsonData["interfaces"].([]interface{})
 	if ok {
-		interfacesAdded := make([]DbInterface, len(ifData))
-		for _, interfaceData := range ifData {
-			dataAsString, err := json.Marshal(interfaceData)
-			if err != nil {
-				s.logger.Error("error marshalling interface data", zap.Error(err))
-				continue
-			}
-			dbInterface := DbInterface{
-				Id:          uuid.NewString(),
-				Policy:      policy,
-				NetboxRefId: -1,
-				Blob:        string(dataAsString),
-			}
-			err = json.Unmarshal(dataAsString, &dbInterface)
-			if err != nil {
-				s.logger.Error("error marshalling interface data", zap.Error(err))
-				continue
-			}
-			statement, err := s.db.Prepare(`
-			INSERT INTO interfaces 
-			    (id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, json_data) 
-			VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )`)
-			if err != nil {
-				s.logger.Error("error during preparing insert statement on interface", zap.Error(err))
-				continue
-			}
-			_, err = statement.Exec(dbInterface.Id, policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name, dbInterface.AdminState,
-				dbInterface.Mtu, dbInterface.Speed, dbInterface.MacAddress, dbInterface.IfType, dbInterface.NetboxRefId, dataAsString)
-			if err != nil {
-				s.logger.Error("error during preparing insert statement on interface",
-					zap.Strings("interface", []string{policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name}),
-					zap.Error(err))
-				continue
-			}
-			interfacesAdded = append(interfacesAdded, dbInterface)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return interfacesAdded, err
+		return s.saveInterfaces(policy, ifData, err)
 	}
 	dData, ok := jsonData["device"].([]interface{})
 	if ok {
-		devicesAdded := make([]DbDevice, len(dData))
-		for _, deviceData := range dData {
-			dataAsString, err := json.Marshal(deviceData)
-			if err != nil {
-				s.logger.Error("error marshalling interface data", zap.Error(err))
-				continue
-			}
-			dbDevice := DbDevice{
-				Id:          uuid.NewString(),
-				Policy:      policy,
-				NetboxRefId: -1,
-				Blob:        string(dataAsString),
-			}
-			err = json.Unmarshal(dataAsString, &dbDevice)
-			if err != nil {
-				s.logger.Error("error marshalling interface data", zap.Error(err))
-				continue
-			}
-			statement, err := s.db.Prepare(
-				`
-				INSERT INTO devices 
-					(id, policy, namespace, hostname, address, serial_number, model, state, vendor, netbox_id, json_data) 
-				VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`)
-			if err != nil {
-				s.logger.Error("error during preparing insert statement", zap.Error(err))
-				continue
-			}
-			_, err = statement.Exec(dbDevice.Id, policy, dbDevice.Namespace, dbDevice.Hostname, dbDevice.Address, dbDevice.SerialNumber,
-				dbDevice.Model, dbDevice.State, dbDevice.Vendor, dbDevice.NetboxRefId, dataAsString)
-			if err != nil {
-				s.logger.Error("error during preparing insert statement on device",
-					zap.Strings("device", []string{policy, dbDevice.Namespace, dbDevice.Hostname}),
-					zap.Error(err))
-				continue
-			}
-			devicesAdded = append(devicesAdded, dbDevice)
-		}
-		return devicesAdded, err
+		return s.saveDevices(policy, dData, err)
 	}
 	vData, ok := jsonData["vlan"].([]interface{})
 	if ok {
-		vlans := make([]DbVlan, len(vData))
-		for _, vlanData := range vData {
-			dataAsString, err := json.Marshal(vlanData)
-			if err != nil {
-				s.logger.Error("error marshalling interface data", zap.Error(err))
-				continue
-			}
-			vlan := DbVlan{
-				Id:          uuid.NewString(),
-				Policy:      policy,
-				NetboxRefId: -1,
-				Blob:        string(dataAsString),
-			}
-			err = json.Unmarshal(dataAsString, &vlan)
-			if err != nil {
-				s.logger.Error("error marshalling interface data", zap.Error(err))
-				continue
-			}
-			statement, err := s.db.Prepare(
-				`INSERT INTO vlans 
-					( id, policy, namespace, hostname, name, state, netbox_id, json_data)
-				VALUES 
-					( $1, $2, $3, $4, $5, $6, $7, $8 )`)
-			if err != nil {
-				s.logger.Error("error during preparing insert statement", zap.Error(err))
-				continue
-			}
-			_, err = statement.Exec(vlan.Id, policy, vlan.Namespace, vlan.Hostname, vlan.Name,
-				vlan.State, vlan.NetboxRefId, dataAsString)
-			if err != nil {
-				s.logger.Error("error during preparing insert statement on device",
-					zap.Strings("vlan", []string{policy, vlan.Namespace, vlan.Hostname, vlan.Name}),
-					zap.Error(err))
-				continue
-			}
-			vlans = append(vlans, vlan)
-		}
-		return vlans, err
+		return s.saveVlans(policy, vData, err)
 	}
 	return nil, errors.New("not able to save anything from entry")
+}
+
+func (s sqliteStorage) saveVlans(policy string, vData []interface{}, err error) (interface{}, error) {
+	vlans := make([]DbVlan, len(vData))
+	for _, vlanData := range vData {
+		dataAsString, err := json.Marshal(vlanData)
+		if err != nil {
+			s.logger.Error("error marshalling interface data", zap.Error(err))
+			continue
+		}
+		vlan := DbVlan{
+			Id:          uuid.NewString(),
+			Policy:      policy,
+			NetboxRefId: -1,
+			Blob:        string(dataAsString),
+		}
+		err = json.Unmarshal(dataAsString, &vlan)
+		if err != nil {
+			s.logger.Error("error marshalling interface data", zap.Error(err))
+			continue
+		}
+		statement, err := s.db.Prepare(
+			`INSERT INTO vlans 
+					( id, policy, namespace, hostname, name, state, json_data)
+				VALUES 
+					( $1, $2, $3, $4, $5, $6, $7 )`)
+		if err != nil {
+			s.logger.Error("error during preparing insert statement", zap.Error(err))
+			continue
+		}
+		_, err = statement.Exec(vlan.Id, policy, vlan.Namespace, vlan.Hostname, vlan.Name,
+			vlan.State, dataAsString)
+		if err != nil {
+			s.logger.Error("error during preparing insert statement on device",
+				zap.Strings("vlan", []string{policy, vlan.Namespace, vlan.Hostname, vlan.Name}),
+				zap.Error(err))
+			continue
+		}
+		vlans = append(vlans, vlan)
+	}
+	return vlans, err
+}
+
+func (s sqliteStorage) saveDevices(policy string, dData []interface{}, err error) (interface{}, error) {
+	devicesAdded := make([]DbDevice, len(dData))
+	for _, deviceData := range dData {
+		dataAsString, err := json.Marshal(deviceData)
+		if err != nil {
+			s.logger.Error("error marshalling interface data", zap.Error(err))
+			continue
+		}
+		dbDevice := DbDevice{
+			Id:          uuid.NewString(),
+			Policy:      policy,
+			NetboxRefId: -1,
+			Blob:        string(dataAsString),
+		}
+		err = json.Unmarshal(dataAsString, &dbDevice)
+		if err != nil {
+			s.logger.Error("error marshalling interface data", zap.Error(err))
+			continue
+		}
+		statement, err := s.db.Prepare(
+			`
+				INSERT INTO devices 
+					(id, policy, namespace,hostname,address,serial_number,model,state,vendor, json_data) 
+				VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`)
+		if err != nil {
+			s.logger.Error("error during preparing insert statement", zap.Error(err))
+			continue
+		}
+		_, err = statement.Exec(dbDevice.Id, policy, dbDevice.Namespace, dbDevice.Hostname, dbDevice.Address, dbDevice.SerialNumber,
+			dbDevice.Model, dbDevice.State, dbDevice.Vendor, dataAsString)
+		if err != nil {
+			s.logger.Error("error during preparing insert statement on device",
+				zap.Strings("device", []string{policy, dbDevice.Namespace, dbDevice.Hostname}),
+				zap.Error(err))
+			continue
+		}
+		devicesAdded = append(devicesAdded, dbDevice)
+	}
+	return devicesAdded, err
+}
+
+func (s sqliteStorage) saveInterfaces(policy string, ifData []interface{}, err error) (interface{}, error) {
+	interfacesAdded := make([]DbInterface, len(ifData))
+	for _, interfaceData := range ifData {
+		dataAsString, err := json.Marshal(interfaceData)
+		if err != nil {
+			s.logger.Error("error marshalling interface data", zap.Error(err))
+			continue
+		}
+		dbInterface := DbInterface{
+			Id:          uuid.NewString(),
+			Policy:      policy,
+			NetboxRefId: -1,
+			Blob:        string(dataAsString),
+		}
+		var ipAddresses []IpAddress
+		interfaceAsJson := interfaceData.(map[string]interface{})
+		ip4AddressList := interfaceAsJson["ipAddressList"].([]interface{})
+		for _, ipAddress := range ip4AddressList {
+			ipAddresses = append(ipAddresses, IpAddress{
+				Address: ipAddress.(string),
+				Type:    "v4",
+			})
+		}
+		ip6AddressList := interfaceAsJson["ip6AddressList"].([]interface{})
+		for _, ipAddress := range ip6AddressList {
+			ipAddresses = append(ipAddresses, IpAddress{
+				Address: ipAddress.(string),
+				Type:    "v6",
+			})
+		}
+		ipsAsString, err := json.Marshal(ipAddresses)
+		if err != nil {
+			s.logger.Error("error marshalling ipaddresses from interfaces", zap.Error(err))
+			continue
+		}
+		dbInterface.IpAddresses = ipAddresses
+		err = json.Unmarshal(dataAsString, &dbInterface)
+		if err != nil {
+			s.logger.Error("error marshalling interface data", zap.Error(err))
+			continue
+		}
+		statement, err := s.db.Prepare(`
+			INSERT INTO interfaces 
+			    (id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, ip_addresses, json_data) 
+			VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )`)
+		if err != nil {
+			s.logger.Error("error during preparing insert statement on interface", zap.Error(err))
+			continue
+		}
+		_, err = statement.Exec(dbInterface.Id, policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name,
+			dbInterface.AdminState, dbInterface.Mtu, dbInterface.Speed, dbInterface.MacAddress, dbInterface.IfType, ipsAsString, dataAsString)
+		if err != nil {
+			s.logger.Error("error during preparing insert statement on interface",
+				zap.Strings("interface", []string{policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name}),
+				zap.Error(err))
+			continue
+		}
+		interfacesAdded = append(interfacesAdded, dbInterface)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return interfacesAdded, err
 }
 
 func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
@@ -333,6 +375,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		 speed INTEGER,
 		 mac_address TEXT,
 		 if_type TEXT,
+		 ip_addresses TEXT,
 		 netbox_id INTEGER, 
 		 json_data TEXT )`)
 	if err != nil {
