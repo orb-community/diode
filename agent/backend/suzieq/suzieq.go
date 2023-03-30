@@ -114,8 +114,9 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 	s.logger.Info("suzieq startup", zap.Strings("arguments", sOptions))
 
 	s.proc = cmd.NewCmdOptions(cmd.Options{
-		Buffered:  false,
-		Streaming: true,
+		Buffered:       false,
+		Streaming:      true,
+		LineBufferSize: cmd.DEFAULT_LINE_BUFFER_SIZE * 2,
 	}, "sq-poller", sOptions...)
 	s.statusChan = s.proc.Start()
 
