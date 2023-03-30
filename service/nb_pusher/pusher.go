@@ -14,6 +14,7 @@ import (
 	"github.com/netbox-community/go-netbox/v3/netbox/client"
 	"github.com/netbox-community/go-netbox/v3/netbox/client/dcim"
 	"github.com/netbox-community/go-netbox/v3/netbox/client/extras"
+	"github.com/netbox-community/go-netbox/v3/netbox/client/ipam"
 	"github.com/netbox-community/go-netbox/v3/netbox/client/status"
 	"github.com/netbox-community/go-netbox/v3/netbox/models"
 	"github.com/orb-community/diode/service/config"
@@ -26,6 +27,7 @@ type Pusher interface {
 	Stop() error
 	CreateDevice([]byte) (int64, error)
 	CreateInterface([]byte) (int64, error)
+	CreateInterfaceIpAddress([]byte) (int64, error)
 }
 
 type NetboxPusher struct {
@@ -205,6 +207,36 @@ func (nb *NetboxPusher) CreateInterface(j []byte) (int64, error) {
 		return invalid_id, err
 	}
 	nb.logger.Info("interface created", zap.String("interface", interfaceData.Name))
+	return created.Payload.ID, nil
+}
+
+func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
+	var err error
+	if !nb.tagsInit {
+		if err = nb.initializeDiodeTags(); err != nil {
+			return invalid_id, err
+		}
+	}
+	var ipData NetboxIpAddress
+	if err = json.Unmarshal(j, &ipData); err != nil {
+		return invalid_id, err
+	}
+
+	ip := ipam.NewIpamIPAddressesCreateParams()
+	var data models.WritableIPAddress
+
+	data.Address = &ipData.Address
+	data.AssignedObjectID = &ipData.AsgdObjID
+	data.AssignedObjectType = &INTERFACE_OBJ_TYPE
+	data.Tags = nb.discoveryTag
+
+	ip.Data = &data
+	var created *ipam.IpamIPAddressesCreateCreated
+	created, err = nb.client.Ipam.IpamIPAddressesCreate(ip, nil)
+	if err != nil {
+		return invalid_id, err
+	}
+	nb.logger.Info("ip address for interface created", zap.String("ip_address", ipData.Address))
 	return created.Payload.ID, nil
 }
 
