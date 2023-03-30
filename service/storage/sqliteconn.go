@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
@@ -31,8 +32,7 @@ func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, names
 		WHERE policy = $1 AND namespace = $2 AND hostname = $3
 	`, policy, namespace, hostname)
 	if err != nil {
-		s.logger.Error("failed to fetch interface", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("storage - fetch interface fail - %v", err)
 	}
 	var interfaces []DbInterface
 	var ipsAsString string
@@ -41,11 +41,11 @@ func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, names
 		err := selectResult.Scan(&iface.Id, &iface.Policy, &iface.Namespace, &iface.Hostname, &iface.Name, &iface.AdminState,
 			&iface.Mtu, &iface.Speed, &iface.MacAddress, &iface.IfType, &iface.NetboxRefId, &ipsAsString, &iface.Blob)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("storage - create ifce struct fail - %v", err)
 		}
 		err = json.Unmarshal([]byte(ipsAsString), &iface.IpAddresses)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("storage - ip_address parse fail - %v", err)
 		}
 		interfaces = append(interfaces, iface)
 	}
@@ -60,8 +60,7 @@ func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) 
 		WHERE policy = $1 AND namespace = $2
 	`, policy, namespace)
 	if err != nil {
-		s.logger.Error("failed to fetch device", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("storage - fetch device fail - %v", err)
 	}
 	var devices []DbDevice
 	for selectResult.Next() {
@@ -69,11 +68,10 @@ func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) 
 		err := selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.SerialNumber,
 			&device.Model, &device.State, &device.Vendor, &device.NetboxRefId, &device.Blob)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("storage - create device struct fail - %v", err)
 		}
 		devices = append(devices, device)
 	}
-
 	return devices, nil
 }
 
@@ -87,7 +85,7 @@ func (s sqliteStorage) GetDeviceByPolicyAndNamespaceAndHostname(policy, namespac
 	err := selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.SerialNumber,
 		&device.Model, &device.State, &device.Vendor, &device.NetboxRefId, &device.Blob)
 	if err != nil {
-		return DbDevice{}, err
+		return DbDevice{}, fmt.Errorf("storage - fetch device fail - %v", err)
 	}
 	return device, nil
 }
@@ -99,7 +97,7 @@ func (s sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace
 		WHERE policy = $1 AND namespace = $2 AND hostname = $3
 	`, policy, namespace, hostname)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("storage - fetch vlan fail - %v", err)
 	}
 	var vlans []DbVlan
 	for selectResult.Next() {
@@ -107,7 +105,7 @@ func (s sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace
 		err := selectResult.Scan(&vlan.Id, &vlan.Policy, &vlan.Namespace, &vlan.Hostname, &vlan.Name,
 			&vlan.State, &vlan.NetboxRefId, &vlan.Blob)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("storage - create vlan struct fail - %v", err)
 		}
 		vlans = append(vlans, vlan)
 	}
@@ -119,7 +117,7 @@ func (s sqliteStorage) UpdateInterface(id string, netboxId int64) (DbInterface, 
 	_, err := s.db.Exec(`
 	UPDATE interfaces SET netbox_id = $1 WHERE id = $2`, netboxId, id)
 	if err != nil {
-		return DbInterface{}, err
+		return DbInterface{}, fmt.Errorf("storage - update interface fail - %v", err)
 	}
 	selectResult := s.db.QueryRow(`
 		SELECT id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, ip_addresses, json_data
@@ -132,11 +130,11 @@ func (s sqliteStorage) UpdateInterface(id string, netboxId int64) (DbInterface, 
 		&dbInterface.Name, &dbInterface.AdminState, &dbInterface.Mtu, &dbInterface.Speed, &dbInterface.MacAddress,
 		&dbInterface.IfType, &dbInterface.NetboxRefId, &ipsAsString, &dbInterface.Blob)
 	if err != nil {
-		return DbInterface{}, err
+		return DbInterface{}, fmt.Errorf("storage - create ifce struct fail - %v", err)
 	}
 	err = json.Unmarshal([]byte(ipsAsString), &dbInterface.IpAddresses)
 	if err != nil {
-		return DbInterface{}, err
+		return DbInterface{}, fmt.Errorf("storage - ip_address parse fail - %v", err)
 	}
 	return dbInterface, nil
 }
@@ -145,7 +143,7 @@ func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error)
 	_, err := s.db.Exec(`
 	UPDATE devices SET netbox_id = $1 WHERE id = $2`, netboxId, id)
 	if err != nil {
-		return DbDevice{}, err
+		return DbDevice{}, fmt.Errorf("storage - update device fail - %v", err)
 	}
 	selectResult := s.db.QueryRow(`
 		SELECT id, policy, namespace, hostname, address, serial_number, model, state, vendor, netbox_id, json_data
@@ -155,7 +153,7 @@ func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error)
 	err = selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.Address, &device.SerialNumber,
 		&device.Model, &device.State, &device.Vendor, &device.NetboxRefId, &device.Blob)
 	if err != nil {
-		return DbDevice{}, err
+		return DbDevice{}, fmt.Errorf("storage - create device struct fail - %v", err)
 	}
 	return device, nil
 }
@@ -164,8 +162,7 @@ func (s sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
 	_, err := s.db.Exec(`
 	UPDATE vlans SET netbox_id = $1 WHERE id = $2`, netboxId, id)
 	if err != nil {
-		s.logger.Error("error updating vlan", zap.Error(err))
-		return DbVlan{}, err
+		return DbVlan{}, fmt.Errorf("storage - update vlan fail - %v", err)
 	}
 	selectResult := s.db.QueryRow(`
 		SELECT id, policy, namespace, hostname, name, state, netbox_id, json_data
@@ -175,7 +172,7 @@ func (s sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
 	err = selectResult.Scan(&vlan.Id, &vlan.Policy, &vlan.Namespace, &vlan.Hostname,
 		&vlan.Name, &vlan.State, &vlan.NetboxRefId, &vlan.Blob)
 	if err != nil {
-		return DbVlan{}, err
+		return DbVlan{}, fmt.Errorf("storage - create vlan struct fail - %v", err)
 	}
 	return vlan, nil
 }
