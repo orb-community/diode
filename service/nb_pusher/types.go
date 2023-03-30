@@ -4,6 +4,13 @@
 
 package nb_pusher
 
+const (
+	INTERFACE_SPEED_MAX int64 = 2147483647
+	INTERFACE_MTU_MIN   int64 = 1
+)
+
+var INTERFACE_OBJ_TYPE string = "dcim.interface"
+
 var DeviceStatusMap = map[string]string{
 	"alive": "active",
 	"dead":  "offline",
@@ -49,4 +56,10 @@ type NetboxInterface struct {
 	Mtu        int64  `json:"mtu"`
 	MacAddress string `json:"mac_address"`
 	State      string `json:"state"`
+}
+
+type NetboxIpAddress struct {
+	Address     string `json:"address"`
+	AsgdObjType string `json:"assigned_object_type"`
+	AsgdObjID   int64  `json:"assigned_object_id"`
 }

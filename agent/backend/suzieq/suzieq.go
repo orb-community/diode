@@ -35,13 +35,12 @@ type suzieqBackend struct {
 	startTime     time.Time
 	cancelFunc    context.CancelFunc
 	ctx           context.Context
-	channel       chan string
 }
 
 var _ backend.Backend = (*suzieqBackend)(nil)
 
 func New() backend.Backend {
-	return &suzieqBackend{channel: make(chan string, 8)}
+	return &suzieqBackend{}
 }
 
 func (s *suzieqBackend) getProcRunningStatus() (backend.RunningStatus, string, error) {
@@ -114,12 +113,13 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 	s.logger.Info("suzieq startup", zap.Strings("arguments", sOptions))
 
 	s.proc = cmd.NewCmdOptions(cmd.Options{
-		Buffered:  false,
-		Streaming: true,
+		Buffered:       false,
+		Streaming:      true,
+		LineBufferSize: cmd.DEFAULT_LINE_BUFFER_SIZE * 2,
 	}, "sq-poller", sOptions...)
 	s.statusChan = s.proc.Start()
 
-	matchOutput := regexp.MustCompile(`\bsuzieq.poller.worker.writers.logging\b`)
+	matchOutput := regexp.MustCompile(`\bsuzieq.poller.worker.writers.logging - WARNING\b`)
 
 	// log STDOUT and STDERR lines streaming from Cmd
 	go func() {
@@ -130,7 +130,12 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 					s.proc.Stdout = nil
 					continue
 				}
-				s.channel <- line
+				if matchOutput.MatchString(line) {
+					_, output, _ := strings.Cut(line, "{")
+					s.proccessDiscovery(output)
+				} else {
+					s.logger.Info("suzieq stdout", zap.String("log", line))
+				}
 			case line, open := <-s.proc.Stderr:
 				if !open {
 					s.proc.Stderr = nil
@@ -139,23 +144,6 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 				s.logger.Info("suzieq stderr", zap.String("log", line))
 			case <-s.proc.Done():
 				s.Stop(ctx)
-				return
-			}
-		}
-	}()
-
-	//proccess Suzieq stdout concurrently
-	go func() {
-		for {
-			select {
-			case line := <-s.channel:
-				if matchOutput.MatchString(line) {
-					_, output, _ := strings.Cut(line, "{")
-					s.proccessDiscovery(output)
-				} else {
-					s.logger.Info("suzieq stdout", zap.String("log", line))
-				}
-			case <-ctx.Done():
 				return
 			}
 		}

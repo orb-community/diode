@@ -2,5 +2,5 @@ data-directory: /tmp
 poller:
   logging-level: WARNING
   period: 30
-  connect-timeout: 15
+  connect-timeout: 20
   log-stdout: True

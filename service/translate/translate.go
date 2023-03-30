@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/orb-community/diode/service/config"
 	"github.com/orb-community/diode/service/nb_pusher"
@@ -19,7 +20,9 @@ type Translator interface {
 	Translate(interface{}) error
 }
 
-type SuzieqTraslate struct {
+const invalid_id int64 = -1
+
+type SuzieQTranslate struct {
 	ctx    context.Context
 	logger *zap.Logger
 	config *config.Config
@@ -39,47 +42,160 @@ type deviceJsonReturn struct {
 	} `json:"device_type"`
 }
 
-func New(ctx context.Context, logger *zap.Logger, config *config.Config, db *storage.Service, pusher *nb_pusher.Pusher) Translator {
-	return &SuzieqTraslate{ctx: ctx, logger: logger, config: config, db: db, pusher: pusher}
+type ifJsonReturn struct {
+	DeviceID   int64  `json:"device_id"`
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	Speed      int64  `json:"speed"`
+	Mtu        int64  `json:"mtu"`
+	MacAddress string `json:"mac_address"`
+	State      string `json:"state"`
 }
 
-func (st *SuzieqTraslate) Translate(data interface{}) error {
+type ifIpJsonReturn struct {
+	IfID int64  `json:"assigned_object_id"`
+	Ip   string `json:"address"`
+}
+
+func New(ctx context.Context, logger *zap.Logger, config *config.Config, db *storage.Service, pusher *nb_pusher.Pusher) Translator {
+	return &SuzieQTranslate{ctx: ctx, logger: logger, config: config, db: db, pusher: pusher}
+}
+
+func (st *SuzieQTranslate) Translate(data interface{}) error {
 	if devices, ok := data.([]storage.DbDevice); ok {
+		var errs error
 		for _, device := range devices {
 			if len(device.Id) == 0 {
 				continue
 			}
 			j, err := st.translateDevice(&device)
 			if err != nil {
-				return err
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
 			}
-			_, err = (*st.pusher).CreateDevice(j)
+			id, err := (*st.pusher).CreateDevice(j)
 			if err != nil {
-				return err
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
+			}
+			newDevice, err := (*st.db).UpdateDevice(device.Id, id)
+			if err != nil {
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
+			}
+			if err := st.checkExistingInterfaces(&newDevice); err != nil {
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
 			}
 		}
-		return nil
+		return errs
 	} else if ifs, ok := data.([]storage.DbInterface); ok {
+		var errs error
 		for _, ifce := range ifs {
 			if len(ifce.Id) == 0 {
 				continue
 			}
-			_, err := st.translateInterface(&ifce)
-			return err
+			device, err := (*st.db).GetDeviceByPolicyAndNamespaceAndHostname(ifce.Policy, ifce.Namespace, ifce.Hostname)
+			if err != nil {
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
+			} else if device.NetboxRefId == invalid_id {
+				err = errors.New("invalid device id")
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
+			}
+			j, err := st.translateInterface(&ifce, device.NetboxRefId)
+			if err != nil {
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
+			}
+			id, err := (*st.pusher).CreateInterface(j)
+			if err != nil {
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
+			}
+			newInterface, err := (*st.db).UpdateInterface(ifce.Id, id)
+			if err != nil {
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
+			}
+			for _, ip := range newInterface.IpAddresses {
+				j, err := st.translateIpInterface(&ip, newInterface.NetboxRefId)
+				if err != nil {
+					if errs != nil {
+						errs = fmt.Errorf("%v; %v", errs, err)
+					} else {
+						errs = err
+					}
+					continue
+				}
+				if _, err := (*st.pusher).CreateInterfaceIpAddress(j); err != nil {
+					if errs != nil {
+						errs = fmt.Errorf("%v; %v", errs, err)
+					} else {
+						errs = err
+					}
+				}
+			}
 		}
+		return errs
 	} else if vlans, ok := data.([]storage.DbVlan); ok {
+		var errs error
 		for _, vlan := range vlans {
 			if len(vlan.Id) == 0 {
 				continue
 			}
-			_, err := st.translateVlan(&vlan)
-			return err
+			if _, err := st.translateVlan(&vlan); err != nil {
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
+			}
 		}
+		return errs
 	}
 	return errors.New("no valid translatable data found")
 }
 
-func (st *SuzieqTraslate) translateDevice(device *storage.DbDevice) ([]byte, error) {
+func (st *SuzieQTranslate) translateDevice(device *storage.DbDevice) ([]byte, error) {
 	var ret deviceJsonReturn
 	ret.Name = device.Hostname
 	ret.Status = device.State
@@ -89,10 +205,44 @@ func (st *SuzieqTraslate) translateDevice(device *storage.DbDevice) ([]byte, err
 	return json.Marshal(ret)
 }
 
-func (st *SuzieqTraslate) translateInterface(ifs *storage.DbInterface) ([]byte, error) {
-	return nil, errors.New("translate for interface data not implemented yet")
+func (st *SuzieQTranslate) translateInterface(ifs *storage.DbInterface, deviceID int64) ([]byte, error) {
+	var ret ifJsonReturn
+	ret.DeviceID = deviceID
+	ret.Name = ifs.Name
+	ret.Type = ifs.IfType
+	ret.Speed = ifs.Speed
+	ret.Mtu = ifs.Mtu
+	ret.MacAddress = ifs.MacAddress
+	ret.State = ifs.AdminState
+	return json.Marshal(ret)
 }
 
-func (st *SuzieqTraslate) translateVlan(vlan *storage.DbVlan) ([]byte, error) {
-	return nil, errors.New("translate for vlan data not implemented yet")
+func (st *SuzieQTranslate) translateIpInterface(ip *storage.IpAddress, ifID int64) ([]byte, error) {
+	var ret ifIpJsonReturn
+	ret.IfID = ifID
+	ret.Ip = ip.Address
+	return json.Marshal(ret)
+}
+
+func (st *SuzieQTranslate) translateVlan(vlan *storage.DbVlan) ([]byte, error) {
+	st.logger.Warn("translate for vlan data not implemented yet")
+	return nil, nil
+}
+
+func (st *SuzieQTranslate) checkExistingInterfaces(device *storage.DbDevice) error {
+	ifs, err := (*st.db).GetInterfaceByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
+	if err != nil {
+		return nil
+	}
+	var vIfs []storage.DbInterface
+
+	for _, v := range ifs {
+		if v.NetboxRefId == invalid_id {
+			vIfs = append(vIfs, v)
+		}
+	}
+	if len(vIfs) > 0 {
+		return st.Translate(vIfs)
+	}
+	return nil
 }
