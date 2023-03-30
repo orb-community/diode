@@ -4,6 +4,11 @@
 
 package nb_pusher
 
+const (
+	INTERFACE_SPEED_MAX int64 = 2147483647
+	INTERFACE_MTU_MIN   int64 = 1
+)
+
 var DeviceStatusMap = map[string]string{
 	"alive": "active",
 	"dead":  "offline",
