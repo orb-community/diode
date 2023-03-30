@@ -12,18 +12,24 @@ type Service interface {
 }
 
 type DbInterface struct {
-	Id          string `json:"id,omitempty"`
-	Policy      string `json:"policy,omitempty"`
-	Namespace   string `json:"namespace"`
-	Hostname    string `json:"hostname"`
-	Name        string `json:"ifname"`
-	AdminState  string `json:"adminState"`
-	Mtu         int64  `json:"mtu"`
-	Speed       int64  `json:"speed"`
-	MacAddress  string `json:"macaddr"`
-	IfType      string `json:"type"`
-	NetboxRefId int64  `json:"netbox_id,omitempty"`
-	Blob        string `json:"blob,omitempty"`
+	Id          string      `json:"id,omitempty"`
+	Policy      string      `json:"policy,omitempty"`
+	Namespace   string      `json:"namespace"`
+	Hostname    string      `json:"hostname"`
+	Name        string      `json:"ifname"`
+	AdminState  string      `json:"adminState"`
+	Mtu         int64       `json:"mtu"`
+	Speed       int64       `json:"speed"`
+	MacAddress  string      `json:"macaddr"`
+	IfType      string      `json:"type"`
+	IpAddresses []IpAddress `json:"ip_addresses,omitempty"`
+	NetboxRefId int64       `json:"netbox_id,omitempty"`
+	Blob        string      `json:"blob,omitempty"`
+}
+
+type IpAddress struct {
+	Address string `json:"address"`
+	Type    string `json:"type"`
 }
 
 type DbDevice struct {
