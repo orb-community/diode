@@ -119,7 +119,7 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 	}, "sq-poller", sOptions...)
 	s.statusChan = s.proc.Start()
 
-	matchOutput := regexp.MustCompile(`\bsuzieq.poller.worker.writers.logging\b`)
+	matchOutput := regexp.MustCompile(`\bsuzieq.poller.worker.writers.logging - WARNING\b`)
 
 	// log STDOUT and STDERR lines streaming from Cmd
 	go func() {
