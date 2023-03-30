@@ -77,9 +77,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				}
 				continue
 			}
-==== BASE ====
-			_, err = (*st.pusher).CreateDevice(j)
-==== BASE ====
+			id, err := (*st.pusher).CreateDevice(j)
 			if err != nil {
 				if errs != nil {
 					errs = fmt.Errorf("%v; %v", errs, err)
