@@ -137,7 +137,7 @@ Before running Diode, you should set the `NETBOX_API_HOST`, `NETBOX_API_TOKEN` a
 export NETBOX_API_HOST=my.netbox.instance:8000
 export NETBOX_API_TOKEN=123456789ABCDEF
 export NETBOX_API_PROTOCOL=http
-export TAG=develop
+export TAG=develop #optional
 ```
 
 You can now run Diode by executing the following command:
