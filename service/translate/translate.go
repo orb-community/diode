@@ -70,21 +70,37 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			}
 			j, err := st.translateDevice(&device)
 			if err != nil {
-				errs = fmt.Errorf("%v; %v", errs, err)
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
 				continue
 			}
 			id, err := (*st.pusher).CreateDevice(j)
 			if err != nil {
-				errs = fmt.Errorf("%v; %v", errs, err)
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
 				continue
 			}
 			newDevice, err := (*st.db).UpdateDevice(device.Id, id)
 			if err != nil {
-				errs = fmt.Errorf("%v; %v", errs, err)
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
 				continue
 			}
 			if err := st.checkExistingInterfaces(&newDevice); err != nil {
-				errs = fmt.Errorf("%v; %v", errs, err)
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
 				continue
 			}
 		}
@@ -97,48 +113,84 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			}
 			device, err := (*st.db).GetDeviceByPolicyAndNamespaceAndHostname(ifce.Policy, ifce.Namespace, ifce.Hostname)
 			if err != nil {
-				errs = fmt.Errorf("%v; %v", errs, err)
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
 				continue
 			} else if device.NetboxRefId == invalid_id {
 				err = errors.New("invalid device id")
-				errs = fmt.Errorf("%v; %v", errs, err)
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
 				continue
 			}
 			j, err := st.translateInterface(&ifce, device.NetboxRefId)
 			if err != nil {
-				errs = fmt.Errorf("%v; %v", errs, err)
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
 				continue
 			}
 			id, err := (*st.pusher).CreateInterface(j)
 			if err != nil {
-				errs = fmt.Errorf("%v; %v", errs, err)
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
 				continue
 			}
 			newInterface, err := (*st.db).UpdateInterface(ifce.Id, id)
 			if err != nil {
-				errs = fmt.Errorf("%v; %v", errs, err)
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
 				continue
 			}
 			for _, ip := range newInterface.IpAddresses {
 				j, err := st.translateIpInterface(&ip, newInterface.NetboxRefId)
 				if err != nil {
-					errs = fmt.Errorf("%v; %v", errs, err)
+					if errs != nil {
+						errs = fmt.Errorf("%v; %v", errs, err)
+					} else {
+						errs = err
+					}
 					continue
 				}
 				if _, err := (*st.pusher).CreateInterfaceIpAddress(j); err != nil {
-					errs = fmt.Errorf("%v; %v", errs, err)
+					if errs != nil {
+						errs = fmt.Errorf("%v; %v", errs, err)
+					} else {
+						errs = err
+					}
 				}
 			}
 		}
 		return errs
 	} else if vlans, ok := data.([]storage.DbVlan); ok {
+		var errs error
 		for _, vlan := range vlans {
 			if len(vlan.Id) == 0 {
 				continue
 			}
-			_, err := st.translateVlan(&vlan)
-			return err
+			if _, err := st.translateVlan(&vlan); err != nil {
+				if errs != nil {
+					errs = fmt.Errorf("%v; %v", errs, err)
+				} else {
+					errs = err
+				}
+				continue
+			}
 		}
+		return errs
 	}
 	return errors.New("no valid translatable data found")
 }
@@ -173,7 +225,8 @@ func (st *SuzieQTranslate) translateIpInterface(ip *storage.IpAddress, ifID int6
 }
 
 func (st *SuzieQTranslate) translateVlan(vlan *storage.DbVlan) ([]byte, error) {
-	return nil, errors.New("translate for vlan data not implemented yet")
+	st.logger.Warn("translate for vlan data not implemented yet")
+	return nil, nil
 }
 
 func (st *SuzieQTranslate) checkExistingInterfaces(device *storage.DbDevice) error {
