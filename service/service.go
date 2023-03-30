@@ -71,10 +71,10 @@ func New(ctx context.Context, cancelFunc context.CancelFunc, logger *zap.Logger,
 func (ds *DiodeService) Start() error {
 
 	go func() {
-		var jsonData map[string]interface{}
 		for {
 			select {
 			case data := <-ds.channel:
+				var jsonData map[string]interface{}
 				var err error
 				if err = json.Unmarshal(data, &jsonData); err != nil {
 					ds.logger.Error("fail to unmarshal json", zap.Error(err))

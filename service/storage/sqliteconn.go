@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
@@ -25,7 +26,7 @@ func NewSqliteStorage(logger *zap.Logger) (Service, error) {
 
 func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInterface, error) {
 	selectResult, err := s.db.Query(`
-		SELECT (id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, json_data) 
+		SELECT id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, json_data
 		FROM interfaces
 		WHERE policy = $1 AND namespace = $2 AND hostname = $3
 	`, policy, namespace, hostname)
@@ -37,7 +38,7 @@ func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, names
 	for selectResult.Next() {
 		var iface DbInterface
 		err := selectResult.Scan(&iface.Id, &iface.Policy, &iface.Namespace, &iface.Hostname, &iface.Name, &iface.AdminState,
-			&iface.Mtu, &iface.Speed, &iface.MacAddress, &iface.IfType, &iface.Blob)
+			&iface.Mtu, &iface.Speed, &iface.MacAddress, &iface.IfType, &iface.NetboxRefId, &iface.Blob)
 		if err != nil {
 			s.logger.Error("failed to create iface struct", zap.Error(err))
 			return nil, err
@@ -50,7 +51,7 @@ func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, names
 
 func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) ([]DbDevice, error) {
 	selectResult, err := s.db.Query(`
-		SELECT (id, policy, namespace, hostname, serial_number, model, state, vendor, json_data) 
+		SELECT id, policy, namespace, hostname, serial_number, model, state, vendor, netbox_id, json_data
 		FROM devices
 		WHERE policy = $1 AND namespace = $2
 	`, policy, namespace)
@@ -62,7 +63,7 @@ func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) 
 	for selectResult.Next() {
 		var device DbDevice
 		err := selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.SerialNumber,
-			&device.Model, &device.State, &device.Vendor, &device.Blob)
+			&device.Model, &device.State, &device.Vendor, &device.NetboxRefId, &device.Blob)
 		if err != nil {
 			s.logger.Error("failed to create device struct", zap.Error(err))
 			return nil, err
@@ -75,13 +76,13 @@ func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) 
 
 func (s sqliteStorage) GetDeviceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) (DbDevice, error) {
 	selectResult := s.db.QueryRow(`
-		SELECT (id, policy, namespace, hostname, serial_number, model, state, vendor, json_data) 
+		SELECT id, policy, namespace, hostname, serial_number, model, state, vendor, netbox_id, json_data
 		FROM devices
 		WHERE policy = $1 AND namespace = $2 AND hostname = $3
 	`, policy, namespace, hostname)
 	var device DbDevice
 	err := selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.SerialNumber,
-		&device.Model, &device.State, &device.Vendor, &device.Blob)
+		&device.Model, &device.State, &device.Vendor, &device.NetboxRefId, &device.Blob)
 	if err != nil {
 		s.logger.Error("failed to create device struct", zap.Error(err))
 		return DbDevice{}, err
@@ -92,7 +93,7 @@ func (s sqliteStorage) GetDeviceByPolicyAndNamespaceAndHostname(policy, namespac
 
 func (s sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbVlan, error) {
 	selectResult, err := s.db.Query(`
-		SELECT (id, policy, namespace, hostname, name, state, json_data) 
+		SELECT id, policy, namespace, hostname, name, state, netbox_id, json_data
 		FROM vlans
 		WHERE policy = $1 AND namespace = $2 AND hostname = $3
 	`, policy, namespace, hostname)
@@ -104,7 +105,7 @@ func (s sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace
 	for selectResult.Next() {
 		var vlan DbVlan
 		err := selectResult.Scan(&vlan.Id, &vlan.Policy, &vlan.Namespace, &vlan.Hostname, &vlan.Name,
-			&vlan.State, &vlan.Blob)
+			&vlan.State, &vlan.NetboxRefId, &vlan.Blob)
 		if err != nil {
 			s.logger.Error("failed to create vlan struct", zap.Error(err))
 			return nil, err
@@ -123,7 +124,7 @@ func (s sqliteStorage) UpdateInterface(id string, netboxId int64) (DbInterface, 
 		return DbInterface{}, err
 	}
 	selectResult := s.db.QueryRow(`
-		SELECT (id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, json_data) 
+		SELECT id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, json_data
 		FROM interfaces
 		WHERE id = $1
 	`, id)
@@ -146,7 +147,7 @@ func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error)
 		return DbDevice{}, err
 	}
 	selectResult := s.db.QueryRow(`
-		SELECT (id, policy, namespace, hostname, address, serial_number, model, state, vendor, netbox_id, json_data) 
+		SELECT id, policy, namespace, hostname, address, serial_number, model, state, vendor, netbox_id, json_data
 		FROM devices
 		WHERE id = $1`, id)
 	var device DbDevice
@@ -167,7 +168,7 @@ func (s sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
 		return DbVlan{}, err
 	}
 	selectResult := s.db.QueryRow(`
-		SELECT (id, policy, namespace, hostname, name, state, netbox_id, json_data) 
+		SELECT id, policy, namespace, hostname, name, state, netbox_id, json_data
 		FROM vlans
 		WHERE id = $1`, id)
 	var vlan DbVlan
@@ -203,14 +204,14 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			}
 			statement, err := s.db.Prepare(`
 			INSERT INTO interfaces 
-			    (id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, json_data) 
-			VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 )`)
+			    (id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, json_data) 
+			VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement on interface", zap.Error(err))
 				continue
 			}
-			_, err = statement.Exec(dbInterface.Id, policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name,
-				dbInterface.AdminState, dbInterface.Mtu, dbInterface.Speed, dbInterface.MacAddress, dbInterface.IfType, dataAsString)
+			_, err = statement.Exec(dbInterface.Id, policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name, dbInterface.AdminState,
+				dbInterface.Mtu, dbInterface.Speed, dbInterface.MacAddress, dbInterface.IfType, dbInterface.NetboxRefId, dataAsString)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement on interface",
 					zap.Strings("interface", []string{policy, dbInterface.Namespace, dbInterface.Hostname, dbInterface.Name}),
@@ -247,14 +248,14 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			statement, err := s.db.Prepare(
 				`
 				INSERT INTO devices 
-					(id,policy, namespace,hostname,address,serial_number,model,state,vendor, json_data) 
-				VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`)
+					(id, policy, namespace, hostname, address, serial_number, model, state, vendor, netbox_id, json_data) 
+				VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement", zap.Error(err))
 				continue
 			}
 			_, err = statement.Exec(dbDevice.Id, policy, dbDevice.Namespace, dbDevice.Hostname, dbDevice.Address, dbDevice.SerialNumber,
-				dbDevice.Model, dbDevice.State, dbDevice.Vendor, dataAsString)
+				dbDevice.Model, dbDevice.State, dbDevice.Vendor, dbDevice.NetboxRefId, dataAsString)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement on device",
 					zap.Strings("device", []string{policy, dbDevice.Namespace, dbDevice.Hostname}),
@@ -287,15 +288,15 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 			}
 			statement, err := s.db.Prepare(
 				`INSERT INTO vlans 
-					( id, policy, namespace, hostname, name, state, json_data)
+					( id, policy, namespace, hostname, name, state, netbox_id, json_data)
 				VALUES 
-					( $1, $2, $3, $4, $5, $6, $7 )`)
+					( $1, $2, $3, $4, $5, $6, $7, $8 )`)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement", zap.Error(err))
 				continue
 			}
 			_, err = statement.Exec(vlan.Id, policy, vlan.Namespace, vlan.Hostname, vlan.Name,
-				vlan.State, dataAsString)
+				vlan.State, vlan.NetboxRefId, dataAsString)
 			if err != nil {
 				s.logger.Error("error during preparing insert statement on device",
 					zap.Strings("vlan", []string{policy, vlan.Namespace, vlan.Hostname, vlan.Name}),
@@ -332,7 +333,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		 speed INTEGER,
 		 mac_address TEXT,
 		 if_type TEXT,
-		 netbox_id INTEGER NULL, 
+		 netbox_id INTEGER, 
 		 json_data TEXT )`)
 	if err != nil {
 		logger.Error("error preparing interfaces statement", zap.Error(err))
@@ -356,7 +357,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		 	model TEXT,
 		 	state TEXT,
 		 	vendor TEXT,
-		 	netbox_id INTEGER NULL, 
+		 	netbox_id INTEGER, 
 		    json_data TEXT 
 		)`)
 	if err != nil {
@@ -379,7 +380,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		hostname TEXT,
 		name TEXT,
 		state TEXT,
-		netbox_id INTEGER NULL,
+		netbox_id INTEGER,
 		json_data TEXT 
 	)`)
 	if err != nil {
