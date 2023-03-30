@@ -321,6 +321,7 @@ func (s sqliteStorage) saveInterfaces(policy string, ifData []interface{}, err e
 			s.logger.Error("error marshalling ipaddresses from interfaces", zap.Error(err))
 			continue
 		}
+		dbInterface.IpAddresses = ipAddresses
 		err = json.Unmarshal(dataAsString, &dbInterface)
 		if err != nil {
 			s.logger.Error("error marshalling interface data", zap.Error(err))
