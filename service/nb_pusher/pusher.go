@@ -186,7 +186,12 @@ func (nb *NetboxPusher) CreateInterface(j []byte) (int64, error) {
 	data.Vdcs = []int64{}
 	data.TaggedVlans = []int64{}
 	data.WirelessLans = []int64{}
-	data.Mtu = &interfaceData.Mtu
+	if interfaceData.Mtu > INTERFACE_MTU_MIN {
+		data.Mtu = &interfaceData.Mtu
+	}
+	if interfaceData.Speed < INTERFACE_SPEED_MAX {
+		data.Speed = &interfaceData.Speed
+	}
 	data.MacAddress = &interfaceData.MacAddress
 	data.Enabled = InterfaceStateMap[interfaceData.State]
 	data.Type = &unknown_interface_type
