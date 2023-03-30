@@ -9,7 +9,7 @@ services:
     environment:
       - DIODE_SERVICE_NETBOX_ENDPOINT=${NETBOX_API_HOST}
       - DIODE_SERVICE_NETBOX_TOKEN=${NETBOX_API_TOKEN}
-      - DIODE_SERVICE_NETBOX_PROTOCOL=${NETBOX_API_PROTOCOL}
+      - DIODE_SERVICE_NETBOX_PROTOCOL=${NETBOX_API_PROTOCOL:-https}
 
   agent:
     image: orbcommunity/diode-agent:${TAG:-latest}
