@@ -100,8 +100,8 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			if _, err := (*st.db).UpdateInterface(ifce.Id, id); err != nil {
 				return err
 			}
-			return nil
 		}
+		return nil
 	} else if vlans, ok := data.([]storage.DbVlan); ok {
 		for _, vlan := range vlans {
 			if len(vlan.Id) == 0 {
