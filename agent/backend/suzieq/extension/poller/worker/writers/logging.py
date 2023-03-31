@@ -20,6 +20,9 @@ class LoggingOutputWorker(OutputWorker):
             logger.warning(json_str)
             return
         half = len(data[topic]) // 2
+        if not half:
+            logger.error("Not able to logging out. Huge output data for topic '%s'", topic)
+            return
         data_left = {topic:data[topic][:half]}
         data_right = {topic:data[topic][half:]}
         self.split_logging(data_left, topic)
@@ -38,5 +41,3 @@ class LoggingOutputWorker(OutputWorker):
         for record in data["records"]:
             ret_val[data["topic"]].append(record)
         self.split_logging(ret_val, data["topic"])
-
-
