@@ -1,0 +1,9 @@
+Value vendor (\S+)
+Value model (\S+)
+Value os (.*)
+Value architecture (\S+)
+
+Start
+  ^\s*board-name:\s+${model}\s*$$
+  ^\s*platform:\s+${os}\s*$$
+  ^\s*architecture-name:\s+${architecture}\s*$$
