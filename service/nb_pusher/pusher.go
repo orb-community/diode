@@ -39,6 +39,7 @@ type NetboxPusher struct {
 	unkRoleID      int64
 	unkDtypeID     int64
 	unkMfrID       int64
+	unkPlatID      int64
 	tagsInit       bool
 	discoveryTag   []*models.NestedTag
 	placeholderTag []*models.NestedTag
@@ -152,6 +153,23 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 			}
 		}
 		data.DeviceType = &nb.unkDtypeID
+	}
+
+	var platID int64
+	if deviceData.Platform != nil {
+		deviceData.Platform.Slug = slug.Make(deviceData.Platform.Name)
+		platID, err = nb.createPlatform(deviceData.Platform, nb.discoveryTag)
+		if err != nil {
+			return invalid_id, err
+		}
+		data.Platform = &platID
+	} else {
+		if nb.unkDtypeID == invalid_id {
+			if nb.unkPlatID, err = nb.createPlatform(&NetboxPlatform{Mfr: nil, Name: unknown_name, Slug: unknown_slug}, nb.placeholderTag); err != nil {
+				return invalid_id, err
+			}
+		}
+		data.Platform = &nb.unkPlatID
 	}
 
 	data.Status = DeviceStatusMap[deviceData.Status]
@@ -286,11 +304,11 @@ func (nb *NetboxPusher) createDiodeTag(name *string, slug *string, color string)
 }
 
 func (nb *NetboxPusher) createSite(site *NetboxSite, tag []*models.NestedTag) (int64, error) {
-	unkSiteCheck := dcim.NewDcimSitesListParams()
-	unkSiteCheck.Slug = &site.Slug
+	siteCheck := dcim.NewDcimSitesListParams()
+	siteCheck.Slug = &site.Slug
 	var err error
 	var list *dcim.DcimSitesListOK
-	list, err = nb.client.Dcim.DcimSitesList(unkSiteCheck, nil)
+	list, err = nb.client.Dcim.DcimSitesList(siteCheck, nil)
 	if err != nil {
 		return invalid_id, err
 	}
@@ -300,16 +318,16 @@ func (nb *NetboxPusher) createSite(site *NetboxSite, tag []*models.NestedTag) (i
 			return result.ID, nil
 		}
 	}
-	unkSite := dcim.NewDcimSitesCreateParams()
+	newSite := dcim.NewDcimSitesCreateParams()
 
-	unkSite.Data = &models.WritableSite{
+	newSite.Data = &models.WritableSite{
 		Name:   &site.Name,
 		Slug:   &site.Slug,
 		Status: site.Status,
 		Tags:   tag,
 	}
 	var created *dcim.DcimSitesCreateCreated
-	created, err = nb.client.Dcim.DcimSitesCreate(unkSite, nil)
+	created, err = nb.client.Dcim.DcimSitesCreate(newSite, nil)
 	if err != nil {
 		return invalid_id, err
 	}
@@ -318,11 +336,11 @@ func (nb *NetboxPusher) createSite(site *NetboxSite, tag []*models.NestedTag) (i
 }
 
 func (nb *NetboxPusher) createDeviceRole(role *NetboxObject, tag []*models.NestedTag) (int64, error) {
-	unkRoleCheck := dcim.NewDcimDeviceRolesListParams()
-	unkRoleCheck.Slug = &role.Slug
+	roleCheck := dcim.NewDcimDeviceRolesListParams()
+	roleCheck.Slug = &role.Slug
 	var err error
 	var list *dcim.DcimDeviceRolesListOK
-	list, err = nb.client.Dcim.DcimDeviceRolesList(unkRoleCheck, nil)
+	list, err = nb.client.Dcim.DcimDeviceRolesList(roleCheck, nil)
 	if err != nil {
 		return invalid_id, err
 	}
@@ -332,14 +350,14 @@ func (nb *NetboxPusher) createDeviceRole(role *NetboxObject, tag []*models.Neste
 			return result.ID, nil
 		}
 	}
-	unkRole := dcim.NewDcimDeviceRolesCreateParams()
-	unkRole.Data = &models.DeviceRole{
+	newRole := dcim.NewDcimDeviceRolesCreateParams()
+	newRole.Data = &models.DeviceRole{
 		Name: &role.Name,
 		Slug: &role.Slug,
 		Tags: tag,
 	}
 	var created *dcim.DcimDeviceRolesCreateCreated
-	created, err = nb.client.Dcim.DcimDeviceRolesCreate(unkRole, nil)
+	created, err = nb.client.Dcim.DcimDeviceRolesCreate(newRole, nil)
 	if err != nil {
 		return invalid_id, err
 	}
@@ -348,11 +366,11 @@ func (nb *NetboxPusher) createDeviceRole(role *NetboxObject, tag []*models.Neste
 }
 
 func (nb *NetboxPusher) createManufacturer(mfr *NetboxObject, tag []*models.NestedTag) (int64, error) {
-	unkMfrCheck := dcim.NewDcimManufacturersListParams()
-	unkMfrCheck.Slug = &mfr.Slug
+	mfrCheck := dcim.NewDcimManufacturersListParams()
+	mfrCheck.Slug = &mfr.Slug
 	var err error
 	var list *dcim.DcimManufacturersListOK
-	list, err = nb.client.Dcim.DcimManufacturersList(unkMfrCheck, nil)
+	list, err = nb.client.Dcim.DcimManufacturersList(mfrCheck, nil)
 	if err != nil {
 		return invalid_id, err
 	}
@@ -362,14 +380,14 @@ func (nb *NetboxPusher) createManufacturer(mfr *NetboxObject, tag []*models.Nest
 			return result.ID, nil
 		}
 	}
-	unkMfr := dcim.NewDcimManufacturersCreateParams()
-	unkMfr.Data = &models.Manufacturer{
+	newMfr := dcim.NewDcimManufacturersCreateParams()
+	newMfr.Data = &models.Manufacturer{
 		Name: &mfr.Name,
 		Slug: &mfr.Slug,
 		Tags: tag,
 	}
 	var created *dcim.DcimManufacturersCreateCreated
-	created, err = nb.client.Dcim.DcimManufacturersCreate(unkMfr, nil)
+	created, err = nb.client.Dcim.DcimManufacturersCreate(newMfr, nil)
 	if err != nil {
 		return invalid_id, err
 	}
@@ -378,11 +396,11 @@ func (nb *NetboxPusher) createManufacturer(mfr *NetboxObject, tag []*models.Nest
 }
 
 func (nb *NetboxPusher) createDeviceType(dType *NetboxDeviceType, tag []*models.NestedTag) (int64, error) {
-	unkDTypeCheck := dcim.NewDcimDeviceTypesListParams()
-	unkDTypeCheck.Slug = &dType.Slug
+	dTypeCheck := dcim.NewDcimDeviceTypesListParams()
+	dTypeCheck.Slug = &dType.Slug
 	var err error
 	var list *dcim.DcimDeviceTypesListOK
-	list, err = nb.client.Dcim.DcimDeviceTypesList(unkDTypeCheck, nil)
+	list, err = nb.client.Dcim.DcimDeviceTypesList(dTypeCheck, nil)
 	if err != nil {
 		return invalid_id, err
 	}
@@ -410,18 +428,67 @@ func (nb *NetboxPusher) createDeviceType(dType *NetboxDeviceType, tag []*models.
 		mfrID = nb.unkMfrID
 	}
 
-	unkDType := dcim.NewDcimDeviceTypesCreateParams()
-	unkDType.Data = &models.WritableDeviceType{
+	newDType := dcim.NewDcimDeviceTypesCreateParams()
+	newDType.Data = &models.WritableDeviceType{
 		Model:        &dType.Model,
 		Slug:         &dType.Slug,
 		Manufacturer: &mfrID,
 		Tags:         tag,
 	}
 	var created *dcim.DcimDeviceTypesCreateCreated
-	created, err = nb.client.Dcim.DcimDeviceTypesCreate(unkDType, nil)
+	created, err = nb.client.Dcim.DcimDeviceTypesCreate(newDType, nil)
 	if err != nil {
 		return invalid_id, err
 	}
 	nb.logger.Info("device type created", zap.String("type", dType.Model))
+	return created.Payload.ID, nil
+}
+
+func (nb *NetboxPusher) createPlatform(plat *NetboxPlatform, tag []*models.NestedTag) (int64, error) {
+	platCheck := dcim.NewDcimPlatformsListParams()
+	platCheck.Slug = &plat.Slug
+	var err error
+	var list *dcim.DcimPlatformsListOK
+	list, err = nb.client.Dcim.DcimPlatformsList(platCheck, nil)
+	if err != nil {
+		return invalid_id, err
+	}
+	if *list.GetPayload().Count != 0 {
+		for _, result := range list.GetPayload().Results {
+			//return first match
+			return result.ID, nil
+		}
+	}
+
+	var mfrID int64
+	if plat.Mfr != nil {
+		plat.Mfr.Slug = slug.Make(plat.Mfr.Name)
+		mfrID, err = nb.createManufacturer(plat.Mfr, nb.discoveryTag)
+		if err != nil {
+			return invalid_id, err
+		}
+	} else {
+		if nb.unkMfrID == invalid_id {
+			unkownObject := &NetboxObject{Name: unknown_name, Slug: unknown_slug}
+			if nb.unkMfrID, err = nb.createManufacturer(unkownObject, nb.placeholderTag); err != nil {
+				return invalid_id, err
+			}
+		}
+		mfrID = nb.unkMfrID
+	}
+
+	newPlatform := dcim.NewDcimPlatformsCreateParams()
+	newPlatform.Data = &models.WritablePlatform{
+		Name:         &plat.Name,
+		Slug:         &plat.Slug,
+		Manufacturer: &mfrID,
+		Tags:         tag,
+	}
+	var created *dcim.DcimPlatformsCreateCreated
+	created, err = nb.client.Dcim.DcimPlatformsCreate(newPlatform, nil)
+	if err != nil {
+		return invalid_id, err
+	}
+	nb.logger.Info("device platform created", zap.String("platform", plat.Name))
 	return created.Payload.ID, nil
 }

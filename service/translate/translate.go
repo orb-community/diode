@@ -40,6 +40,12 @@ type deviceJsonReturn struct {
 			Name string `json:"name"`
 		} `json:"manufacturers"`
 	} `json:"device_type"`
+	Platform struct {
+		Name string `json:"name"`
+		Mfr  struct {
+			Name string `json:"name"`
+		} `json:"manufacturers"`
+	} `json:"platform"`
 }
 
 type ifJsonReturn struct {
@@ -202,6 +208,8 @@ func (st *SuzieQTranslate) translateDevice(device *storage.DbDevice) ([]byte, er
 	ret.Serial = device.SerialNumber
 	ret.Dtype.Model = device.Model
 	ret.Dtype.Mfr.Name = device.Vendor
+	ret.Platform.Name = device.Os
+	ret.Platform.Mfr.Name = device.Vendor
 	return json.Marshal(ret)
 }
 
