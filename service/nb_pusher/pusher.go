@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 
 	transport "github.com/go-openapi/runtime/client"
 	"github.com/gosimple/slug"
@@ -243,6 +244,11 @@ func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
 
 	ip := ipam.NewIpamIPAddressesCreateParams()
 	var data models.WritableIPAddress
+
+	//generate ip prefix by our own
+	if _, prefix, err := net.ParseCIDR(ipData.Address); err == nil {
+		nb.createIpPrefix(prefix.String(), nb.discoveryTag)
+	}
 
 	data.Address = &ipData.Address
 	data.AssignedObjectID = &ipData.AsgdObjID
@@ -490,5 +496,33 @@ func (nb *NetboxPusher) createPlatform(plat *NetboxPlatform, tag []*models.Neste
 		return invalid_id, err
 	}
 	nb.logger.Info("device platform created", zap.String("platform", plat.Name))
+	return created.Payload.ID, nil
+}
+
+func (nb *NetboxPusher) createIpPrefix(prefix string, tag []*models.NestedTag) (int64, error) {
+	preCheck := ipam.NewIpamPrefixesListParams()
+	preCheck.Prefix = &prefix
+	var err error
+	var list *ipam.IpamPrefixesListOK
+	list, err = nb.client.Ipam.IpamPrefixesList(preCheck, nil)
+	if err != nil {
+		return invalid_id, err
+	}
+	if *list.GetPayload().Count != 0 {
+		for _, result := range list.GetPayload().Results {
+			//return first match
+			return result.ID, nil
+		}
+	}
+	newPrefix := ipam.NewIpamPrefixesCreateParams()
+	newPrefix.Data = &models.WritablePrefix{
+		Prefix: &prefix,
+	}
+	var created *ipam.IpamPrefixesCreateCreated
+	created, err = nb.client.Ipam.IpamPrefixesCreate(newPrefix, nil)
+	if err != nil {
+		return invalid_id, err
+	}
+	nb.logger.Info("ipam prefix created", zap.String("prefix", prefix))
 	return created.Payload.ID, nil
 }
