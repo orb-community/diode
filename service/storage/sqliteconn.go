@@ -17,15 +17,17 @@ type sqliteStorage struct {
 	db     *sql.DB
 }
 
+var _ Service = (*sqliteStorage)(nil)
+
 func NewSqliteStorage(logger *zap.Logger) (Service, error) {
 	db, err := startSqliteDb(logger)
 	if err != nil {
 		return nil, err
 	}
-	return sqliteStorage{db: db, logger: logger}, nil
+	return &sqliteStorage{db: db, logger: logger}, nil
 }
 
-func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInterface, error) {
+func (s *sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInterface, error) {
 	selectResult, err := s.db.Query(`
 		SELECT id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, ip_addresses, json_data
 		FROM interfaces
@@ -53,7 +55,7 @@ func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, names
 	return interfaces, nil
 }
 
-func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) ([]DbDevice, error) {
+func (s *sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) ([]DbDevice, error) {
 	selectResult, err := s.db.Query(`
 		SELECT id, policy, namespace, hostname, serial_number, model, state, vendor, netbox_id, json_data
 		FROM devices
@@ -75,7 +77,7 @@ func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) 
 	return devices, nil
 }
 
-func (s sqliteStorage) GetDeviceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) (DbDevice, error) {
+func (s *sqliteStorage) GetDeviceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) (DbDevice, error) {
 	selectResult := s.db.QueryRow(`
 		SELECT id, policy, namespace, hostname, serial_number, model, state, vendor, netbox_id, json_data
 		FROM devices
@@ -90,12 +92,11 @@ func (s sqliteStorage) GetDeviceByPolicyAndNamespaceAndHostname(policy, namespac
 	return device, nil
 }
 
-func (s sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbVlan, error) {
-	selectResult, err := s.db.Query(`
-		SELECT id, policy, namespace, hostname, name, state, netbox_id, json_data
+func (s *sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbVlan, error) {
+	selectResult, err := s.db.Query(
+		`SELECT id, policy, namespace, hostname, name, state, netbox_id, json_data
 		FROM vlans
-		WHERE policy = $1 AND namespace = $2 AND hostname = $3
-	`, policy, namespace, hostname)
+		WHERE policy = $1 AND namespace = $2 AND hostname = $3 `, policy, namespace, hostname)
 	if err != nil {
 		return nil, fmt.Errorf("storage - fetch vlan fail - %v", err)
 	}
@@ -113,7 +114,7 @@ func (s sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace
 	return vlans, nil
 }
 
-func (s sqliteStorage) UpdateInterface(id string, netboxId int64) (DbInterface, error) {
+func (s *sqliteStorage) UpdateInterface(id string, netboxId int64) (DbInterface, error) {
 	_, err := s.db.Exec(`
 	UPDATE interfaces SET netbox_id = $1 WHERE id = $2`, netboxId, id)
 	if err != nil {
@@ -139,7 +140,7 @@ func (s sqliteStorage) UpdateInterface(id string, netboxId int64) (DbInterface, 
 	return dbInterface, nil
 }
 
-func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error) {
+func (s *sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error) {
 	_, err := s.db.Exec(`
 	UPDATE devices SET netbox_id = $1 WHERE id = $2`, netboxId, id)
 	if err != nil {
@@ -158,14 +159,13 @@ func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error)
 	return device, nil
 }
 
-func (s sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
-	_, err := s.db.Exec(`
-	UPDATE vlans SET netbox_id = $1 WHERE id = $2`, netboxId, id)
+func (s *sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
+	_, err := s.db.Exec(`UPDATE vlans SET netbox_id = $1 WHERE id = $2`, netboxId, id)
 	if err != nil {
 		return DbVlan{}, fmt.Errorf("storage - update vlan fail - %v", err)
 	}
-	selectResult := s.db.QueryRow(`
-		SELECT id, policy, namespace, hostname, name, state, netbox_id, json_data
+	selectResult := s.db.QueryRow(
+		`SELECT id, policy, namespace, hostname, name, state, netbox_id, json_data
 		FROM vlans
 		WHERE id = $1`, id)
 	var vlan DbVlan
@@ -177,7 +177,7 @@ func (s sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
 	return vlan, nil
 }
 
-func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (stored interface{}, err error) {
+func (s *sqliteStorage) Save(policy string, jsonData map[string]interface{}) (stored interface{}, err error) {
 	ifData, ok := jsonData["interfaces"].([]interface{})
 	if ok {
 		return s.saveInterfaces(policy, ifData, err)
@@ -193,7 +193,7 @@ func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (sto
 	return nil, errors.New("not able to save anything from entry")
 }
 
-func (s sqliteStorage) saveVlans(policy string, vData []interface{}, err error) (interface{}, error) {
+func (s *sqliteStorage) saveVlans(policy string, vData []interface{}, err error) (interface{}, error) {
 	vlans := make([]DbVlan, len(vData))
 	for _, vlanData := range vData {
 		dataAsString, err := json.Marshal(vlanData)
@@ -234,7 +234,7 @@ func (s sqliteStorage) saveVlans(policy string, vData []interface{}, err error) 
 	return vlans, err
 }
 
-func (s sqliteStorage) saveDevices(policy string, dData []interface{}, err error) (interface{}, error) {
+func (s *sqliteStorage) saveDevices(policy string, dData []interface{}, err error) (interface{}, error) {
 	devicesAdded := make([]DbDevice, len(dData))
 	for _, deviceData := range dData {
 		dataAsString, err := json.Marshal(deviceData)
@@ -254,8 +254,7 @@ func (s sqliteStorage) saveDevices(policy string, dData []interface{}, err error
 			continue
 		}
 		statement, err := s.db.Prepare(
-			`
-				INSERT INTO devices 
+			`INSERT INTO devices 
 					(id, policy, namespace, hostname, address, serial_number, model, state, vendor, netbox_id, json_data) 
 				VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 )`)
 		if err != nil {
@@ -275,7 +274,7 @@ func (s sqliteStorage) saveDevices(policy string, dData []interface{}, err error
 	return devicesAdded, err
 }
 
-func (s sqliteStorage) saveInterfaces(policy string, ifData []interface{}, err error) (interface{}, error) {
+func (s *sqliteStorage) saveInterfaces(policy string, ifData []interface{}, err error) (interface{}, error) {
 	interfacesAdded := make([]DbInterface, len(ifData))
 	for _, interfaceData := range ifData {
 		dataAsString, err := json.Marshal(interfaceData)
@@ -316,8 +315,8 @@ func (s sqliteStorage) saveInterfaces(policy string, ifData []interface{}, err e
 			s.logger.Error("error marshalling interface data", zap.Error(err))
 			continue
 		}
-		statement, err := s.db.Prepare(`
-			INSERT INTO interfaces 
+		statement, err := s.db.Prepare(
+			`INSERT INTO interfaces 
 			    (id, policy, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, ip_addresses,  netbox_id, json_data) 
 			VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 )`)
 		if err != nil {
