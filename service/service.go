@@ -54,7 +54,7 @@ func New(ctx context.Context, cancelFunc context.CancelFunc, logger *zap.Logger,
 		cancelFunc()
 		return nil, err
 	}
-	translate := translate.New(ctx, logger, config, service, pusher)
+	translateSvc := translate.New(ctx, logger, config, service, pusher)
 	return &DiodeService{
 		logger:             logger,
 		config:             config,
@@ -64,7 +64,7 @@ func New(ctx context.Context, cancelFunc context.CancelFunc, logger *zap.Logger,
 		cancelAsyncContext: cancelFunc,
 		asyncContext:       ctx,
 		storageService:     service,
-		translate:          translate,
+		translate:          translateSvc,
 	}, nil
 }
 
@@ -87,7 +87,7 @@ func (ds *DiodeService) Start() error {
 						continue
 					}
 					if err = ds.translate.Translate(ret); err != nil {
-						ds.logger.Error("error during traslating data", zap.String("policy", policy), zap.Error(err))
+						ds.logger.Error("error during translating data", zap.String("policy", policy), zap.Error(err))
 					}
 				}
 			case <-ds.asyncContext.Done():
