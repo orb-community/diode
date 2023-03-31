@@ -24,8 +24,8 @@ type SuzieQTranslate struct {
 	ctx    context.Context
 	logger *zap.Logger
 	config *config.Config
-	db     *storage.Service
-	pusher *nb_pusher.Pusher
+	db     storage.Service
+	pusher nb_pusher.Pusher
 }
 
 type deviceJsonReturn struct {
@@ -55,7 +55,7 @@ type ifIpJsonReturn struct {
 	Ip   string `json:"address"`
 }
 
-func New(ctx context.Context, logger *zap.Logger, config *config.Config, db *storage.Service, pusher *nb_pusher.Pusher) Translator {
+func New(ctx context.Context, logger *zap.Logger, config *config.Config, db storage.Service, pusher nb_pusher.Pusher) Translator {
 	return &SuzieQTranslate{ctx: ctx, logger: logger, config: config, db: db, pusher: pusher}
 }
 
@@ -75,7 +75,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				}
 				continue
 			}
-			id, err := (*st.pusher).CreateDevice(j)
+			id, err := st.pusher.CreateDevice(j)
 			if err != nil {
 				if errs != nil {
 					errs = errors.Join(errs, err)
@@ -84,7 +84,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				}
 				continue
 			}
-			newDevice, err := (*st.db).UpdateDevice(device.Id, id)
+			newDevice, err := st.db.UpdateDevice(device.Id, id)
 			if err != nil {
 				if errs != nil {
 					errs = errors.Join(errs, err)
@@ -109,7 +109,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			if len(ifce.Id) == 0 {
 				continue
 			}
-			device, err := (*st.db).GetDeviceByPolicyAndNamespaceAndHostname(ifce.Policy, ifce.Namespace, ifce.Hostname)
+			device, err := st.db.GetDeviceByPolicyAndNamespaceAndHostname(ifce.Policy, ifce.Namespace, ifce.Hostname)
 			if err != nil {
 				if errs != nil {
 					errs = errors.Join(errs, err)
@@ -135,7 +135,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				}
 				continue
 			}
-			id, err := (*st.pusher).CreateInterface(j)
+			id, err := st.pusher.CreateInterface(j)
 			if err != nil {
 				if errs != nil {
 					errs = errors.Join(errs, err)
@@ -144,7 +144,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				}
 				continue
 			}
-			newInterface, err := (*st.db).UpdateInterface(ifce.Id, id)
+			newInterface, err := st.db.UpdateInterface(ifce.Id, id)
 			if err != nil {
 				if errs != nil {
 					errs = errors.Join(errs, err)
@@ -163,7 +163,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 					}
 					continue
 				}
-				if _, err := (*st.pusher).CreateInterfaceIpAddress(j); err != nil {
+				if _, err := st.pusher.CreateInterfaceIpAddress(j); err != nil {
 					if errs != nil {
 						errs = errors.Join(errs, err)
 					} else {
@@ -228,7 +228,7 @@ func (st *SuzieQTranslate) translateVlan(vlan *storage.DbVlan) ([]byte, error) {
 }
 
 func (st *SuzieQTranslate) checkExistingInterfaces(device *storage.DbDevice) error {
-	ifs, err := (*st.db).GetInterfaceByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
+	ifs, err := st.db.GetInterfaceByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
 	if err != nil {
 		return nil
 	}
