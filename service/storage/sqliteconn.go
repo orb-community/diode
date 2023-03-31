@@ -55,7 +55,7 @@ func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, names
 
 func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) ([]DbDevice, error) {
 	selectResult, err := s.db.Query(`
-		SELECT id, policy, namespace, hostname, serial_number, model, state, vendor, netbox_id, json_data
+		SELECT id, policy, namespace, hostname, serial_number, model, state, vendor, os, netbox_id, json_data
 		FROM devices
 		WHERE policy = $1 AND namespace = $2
 	`, policy, namespace)
@@ -66,7 +66,7 @@ func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) 
 	for selectResult.Next() {
 		var device DbDevice
 		err := selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.SerialNumber,
-			&device.Model, &device.State, &device.Vendor, &device.NetboxRefId, &device.Blob)
+			&device.Model, &device.State, &device.Vendor, &device.Os, &device.NetboxRefId, &device.Blob)
 		if err != nil {
 			return nil, fmt.Errorf("storage - create device struct fail - %v", err)
 		}
@@ -77,13 +77,13 @@ func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) 
 
 func (s sqliteStorage) GetDeviceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) (DbDevice, error) {
 	selectResult := s.db.QueryRow(`
-		SELECT id, policy, namespace, hostname, serial_number, model, state, vendor, netbox_id, json_data
+		SELECT id, policy, namespace, hostname, serial_number, model, state, vendor, os, netbox_id, json_data
 		FROM devices
 		WHERE policy = $1 AND namespace = $2 AND hostname = $3
 	`, policy, namespace, hostname)
 	var device DbDevice
 	err := selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.SerialNumber,
-		&device.Model, &device.State, &device.Vendor, &device.NetboxRefId, &device.Blob)
+		&device.Model, &device.State, &device.Vendor, &device.Os, &device.NetboxRefId, &device.Blob)
 	if err != nil {
 		return DbDevice{}, fmt.Errorf("storage - fetch device fail - %v", err)
 	}
@@ -146,12 +146,12 @@ func (s sqliteStorage) UpdateDevice(id string, netboxId int64) (DbDevice, error)
 		return DbDevice{}, fmt.Errorf("storage - update device fail - %v", err)
 	}
 	selectResult := s.db.QueryRow(`
-		SELECT id, policy, namespace, hostname, address, serial_number, model, state, vendor, netbox_id, json_data
+		SELECT id, policy, namespace, hostname, address, serial_number, model, state, vendor, os, netbox_id, json_data
 		FROM devices
 		WHERE id = $1`, id)
 	var device DbDevice
 	err = selectResult.Scan(&device.Id, &device.Policy, &device.Namespace, &device.Hostname, &device.Address, &device.SerialNumber,
-		&device.Model, &device.State, &device.Vendor, &device.NetboxRefId, &device.Blob)
+		&device.Model, &device.State, &device.Vendor, &device.Os, &device.NetboxRefId, &device.Blob)
 	if err != nil {
 		return DbDevice{}, fmt.Errorf("storage - create device struct fail - %v", err)
 	}
@@ -256,14 +256,14 @@ func (s sqliteStorage) saveDevices(policy string, dData []interface{}, err error
 		statement, err := s.db.Prepare(
 			`
 				INSERT INTO devices 
-					(id, policy, namespace, hostname, address, serial_number, model, state, vendor, netbox_id, json_data) 
-				VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 )`)
+					(id, policy, namespace, hostname, address, serial_number, model, state, vendor, os, netbox_id, json_data) 
+				VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )`)
 		if err != nil {
 			s.logger.Error("error during preparing insert statement", zap.Error(err))
 			continue
 		}
 		_, err = statement.Exec(dbDevice.Id, policy, dbDevice.Namespace, dbDevice.Hostname, dbDevice.Address, dbDevice.SerialNumber,
-			dbDevice.Model, dbDevice.State, dbDevice.Vendor, dbDevice.NetboxRefId, dataAsString)
+			dbDevice.Model, dbDevice.State, dbDevice.Vendor, dbDevice.Os, dbDevice.NetboxRefId, dataAsString)
 		if err != nil {
 			s.logger.Error("error during preparing insert statement on device",
 				zap.Strings("device", []string{policy, dbDevice.Namespace, dbDevice.Hostname}),
@@ -388,6 +388,7 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		 	model TEXT,
 		 	state TEXT,
 		 	vendor TEXT,
+			os TEXT,
 		 	netbox_id INTEGER, 
 		    json_data TEXT 
 		)`)
