@@ -1,6 +1,6 @@
 module github.com/orb-community/diode
 
-go 1.19
+go 1.20
 
 require (
 	github.com/go-cmd/cmd v1.4.1
