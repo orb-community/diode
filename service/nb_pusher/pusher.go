@@ -156,6 +156,7 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 
 	data.Status = DeviceStatusMap[deviceData.Status]
 	data.Name = &deviceData.Name
+	data.Serial = deviceData.Serial
 	data.Tags = nb.discoveryTag
 
 	device.Data = &data
