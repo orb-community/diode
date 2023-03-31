@@ -1,0 +1,153 @@
+service: device
+ignore-fields:
+  - bootupTimestamp
+show-fields:
+  - model
+  - version
+  - vendor
+  - architecture
+  - status
+  - address
+  - bootupTimestamp
+apply:
+  eos:
+    version: all
+    command: show version
+    normalize: '[
+    "modelName: model",
+    "memTotal: memory?|0",
+    "version: version",
+    "vendor: vendor?|Arista",
+    "os: os?|eos",
+    "architecture: architecture",
+    "serialNumber: serialNumber",
+    "bootupTimestamp: bootupTimestamp"]'
+
+  cumulus:
+    version: all
+    merge: False
+    command:
+      - command: net show system json
+        normalize: '[
+        "os-version: version",
+        "vendor: vendor?|Cumulus",
+        "os: os?|cumulus",
+        "memory: memory?|0",
+        "platform/info/model_name: _modelName?|",
+        "platform/model: model?|",
+        "eeprom/Serial Number/value: serialNumber?|",
+        "platform/info/cpu/summary: architecture?|x86_64",
+        "_entryType: _entryType?|json"
+        ]'
+
+      - command: cat /proc/stat | grep btime | grep -o '[0-9]*'
+        textfsm: textfsm_templates/cls_uptime_hostname.tfsm
+        _entryType: bootupTimestamp
+
+      - command: /usr/cumulus/bin/decode-syseeprom; cat /etc/os-release; cat /proc/meminfo
+        textfsm: textfsm_templates/cls_model_rel.tfsm
+        _entryType: model
+
+  iosxe:
+    version: all
+    command: show version
+    textfsm: textfsm_templates/iosxe_show_version.tfsm
+
+  iosxr:
+    version: all
+    command: show version
+    textfsm: textfsm_templates/iosxr_show_version.tfsm
+
+  ios:
+    copy: iosxe
+
+  linux:
+    version: all
+    command: cat /proc/stat | grep btime | grep -o '[0-9]*'; hostnamectl
+    textfsm: textfsm_templates/linux_showsys.tfsm
+
+  sonic:
+    version: all
+    command: cat /proc/stat | grep btime | grep -o '[0-9]*'; hostnamectl; show version
+    textfsm: textfsm_templates/sonic_showsys.tfsm
+
+  nxos:
+     - version: < 9.3(0)
+       command: show version
+       textfsm: textfsm_templates/nxos_show_version.tfsm
+
+     - version: all
+       command: show version | json native
+       normalize: '[
+       "kickstart_ver_str: version",
+       "manufacturer: vendor?Cisco|Cisco",
+       "chassis_id: model?|",
+       "os: os?|nxos",
+       "kern_uptm_days: kern_uptm_days?|0",
+       "kern_uptm_hrs: kern_uptm_hrs?|0",
+       "kern_uptm_mins: kern_uptm_mins?|0",
+       "kern_uptm_secs: kern_uptm_secs?|0",
+       "proc_board_id: serialNumber?|",
+       "cpu_name: architecture",
+       "memory: memory?|0",
+       "rr_reason: reason?|",
+       ]'
+
+  junos-qfx:
+    version: all
+    command:
+      - command: "show system information | display json | no-more"
+        normalize: 'system-information/*/[
+        "hardware-model/[0]/data: model",
+        "os-name/[0]/data: os?|junos",
+        "os-version/[0]/data: version",
+        "vendor: vendor?|Juniper",
+        "serial-number/[0]/data: serialNumber",
+        ]'
+      - command: "show system uptime | display json"
+        normalize: 'multi-routing-engine-results/[0]/multi-routing-engine-item/[0]/system-uptime-information/*/[
+        "system-booted-time/[0]/date-time/[0]/attributes: bootupTimestamp?|"
+        ]'
+
+  junos-ex:
+    copy: junos-qfx
+
+  junos-mx:
+    version: all
+    command:
+      - command: "show system information | display json | no-more"
+        normalize: 'system-information/*/[
+        "hardware-model/[0]/data: model",
+        "os-name/[0]/data: os?|junos",
+        "os-version/[0]/data: version",
+        "vendor: vendor?|Juniper",
+        "serial-number/[0]/data: serialNumber",
+        ]'
+      - command: "show system uptime | display json"
+        normalize: 'system-uptime-information/*/[
+        "system-booted-time/[0]/date-time/[0]/attributes: bootupTimestamp?|"
+        ]'
+
+  junos-es:
+    copy: junos-mx
+
+  junos-qfx10k:
+    copy: junos-mx
+
+  junos-evo:
+    copy: junos-mx
+
+  panos:
+    version: all
+    command: <show><system><info/></system></show>
+    normalize: 'response/result/system/[
+      "model: model",
+      "sw-version: version",
+      "uptime: _uptime",
+      "serial: serialNumber",
+    ]'
+    
+  routeros:
+    version: all
+    command: system resource print
+    textfsm: textfsm_templates/routeros_resource_print.tfsm
