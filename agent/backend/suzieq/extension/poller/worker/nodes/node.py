@@ -344,6 +344,19 @@ class Node:
     async def _parse_device_type_hostname(self, output, _) -> None:
         devtype = ""
         hostname = None
+               self.logger.info(
+                    f'{self.address}: outputs0: '
+                    f'{output[0]["status"]}')
+               self.logger.info(
+                    f'{self.address}: outputs1: '
+                    f'{output[1]["status"]}')
+               self.logger.info(
+                    f'{self.address}: outputs2: '
+                    f'{output[2]["status"]}')
+               self.logger.info(
+                    f'{self.address}: outputs3: '
+                    f'{output[3]["status"]}')
+
         if (len(output) > 2) and (output[2]["status"] == 0):
             # checking mikrotik support
             devtype = 'unsupported'
