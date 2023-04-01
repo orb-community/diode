@@ -345,12 +345,8 @@ class Node:
         hostname = None
         self.logger.warn(f'{self.address}: length: '
                          f'{len(output)}')       
-        self.logger.warn(f'{self.address}: outputs0: '
-                             f'{output[0]["status"]}')
-        self.logger.warn(f'{self.address}: outputs1: '
-                     f'{output[1]["status"]}')
-        self.logger.warn(f'{self.address}: outputs2: '
-                     f'{output[2]["data"]}')
+        self.logger.warn(f'{self.address}: outputs3: '
+                     f'{output[3]["data"]}')
 
         if output[0]["status"] == 0:
             # don't keep trying if we're connected to an unsupported dev
@@ -444,11 +440,14 @@ class Node:
                     platform = str(pmatch.group(1))
                     mk1 = platform.find("Mikrotik")
                     mk2 = platform.find("MikroTik")                 
-                    if mk1 >= 0 || mk2 >=0:
+                    if mk1 >= 0 or mk2 >=0:
                         devtype = "routeros"
                         self.logger.warn(
                             f'{self.address}: Recognized device Mikrotik!!! '
                             f'{devtype}')
+                        if (len(output) > 3) and (output[3]["status"] == 0):
+                            
+                            
                     else:
                         self.logger.warn(
                             f'{self.address}: Unrecognized device: '
