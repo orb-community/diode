@@ -344,7 +344,7 @@ class Node:
     async def _parse_device_type_hostname(self, output, _) -> None:
         devtype = ""
         hostname = None
-        self.logger.info(f'{self.address}: length: '
+        self.logger.warn(f'{self.address}: length: '
                          f'{len(output)}')       
 
         if output[0]["status"] == 0:
