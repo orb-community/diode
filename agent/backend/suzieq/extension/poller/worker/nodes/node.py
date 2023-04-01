@@ -350,7 +350,8 @@ class Node:
         self.logger.warn(f'{self.address}: outputs1: '
                      f'{output[1]["status"]}')
         self.logger.warn(f'{self.address}: outputs2: '
-                     f'{output[2]["status"]}')
+                     f'{output[2]["data"]}')
+
         if output[0]["status"] == 0:
             # don't keep trying if we're connected to an unsupported dev
             devtype = 'unsupported'
