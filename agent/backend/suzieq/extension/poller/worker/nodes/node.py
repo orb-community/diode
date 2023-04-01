@@ -442,10 +442,7 @@ class Node:
                         devtype = "routeros"
                         self.logger.warn(
                             f'{self.address}: Recognized device Mikrotik!!! '
-                            f'{devtype}')
-                        if (len(output) > 3) and (output[3]["status"] == 0):
-                            
-                            
+                            f'{devtype}')                            
                     else:
                         self.logger.warn(
                             f'{self.address}: Unrecognized device: '
