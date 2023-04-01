@@ -390,11 +390,6 @@ class Node:
                 devtype = "iosxe"
             elif "Cisco IOS Software" in data:
                 devtype = "ios"
-            elif 'Mikrotik' in data:
-                devtype = "routeros"
-                self.logger.info(
-                    f'{self.address}: Recognized device Mikrotik: '
-                    f'{devtype}')
             else:
                 self.logger.info(
                     f'{self.address}: Got unrecognized device show version: '
@@ -439,6 +434,20 @@ class Node:
                 # Hostname is the last line of the output
                 if len(data.strip()) > 0:
                     hostname = data.splitlines()[-1].strip()
+                    
+        elif (len(output) > 2) and (output[2]["status"] == 0):
+            devtype = 'unsupported'
+            data = output[2]["data"]
+            if data:
+                if 'Mikrotik' in data:
+                    devtype = "routeros"
+                    self.logger.info(
+                        f'{self.address}: Recognized device Mikrotik!!! '
+                        f'{devtype}')
+                else:
+                    self.logger.info(
+                        f'{self.address}: Unrecognized device Mikrotik: '
+                        f'{devtype}')
 
         if devtype == 'unsupported':
             if not self.current_exception:
