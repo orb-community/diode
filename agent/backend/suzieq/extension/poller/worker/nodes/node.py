@@ -439,15 +439,21 @@ class Node:
             devtype = 'unsupported'
             data = output[2]["data"]
             if data:
-                if 'Mikrotik' in data:
-                    devtype = "routeros"
+                pmatch = re.search(r'platform:\s+(\S+)\n', data)
+                if pmatch:
+                    platform = pmatch.group(1)
                     self.logger.warn(
-                        f'{self.address}: Recognized device Mikrotik!!! '
-                        f'{devtype}')
-                else:
-                    self.logger.warn(
-                        f'{self.address}: Unrecognized device Mikrotik: '
-                        f'{devtype}')
+                        f'{self.address}: Platform found! '
+                        f'{platform}')
+                    if platform == 'Mikrotik':
+                        devtype = "routeros"
+                        self.logger.warn(
+                            f'{self.address}: Recognized device Mikrotik!!! '
+                            f'{devtype}')
+                    else:
+                        self.logger.warn(
+                            f'{self.address}: Unrecognized device Mikrotik: '
+                            f'{devtype}')
 
         if devtype == 'unsupported':
             if not self.current_exception:
