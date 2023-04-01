@@ -2076,6 +2076,44 @@ class SonicNode(Node):
             self.logger.warning(
                 f'Cannot parse version from {self.address}:{self.port}')
             self.version = "all"
+            
+class RouterosNode(Node):
+    '''RouterOS Node-specific implementtaion'''
+
+    async def _rest_connect(self):
+        raise NotImplementedError(
+            f'{self.address}: REST transport is not supported')
+
+    async def _rest_gather(self, service_callback, cmd_list, cb_token,
+                           oformat="json", timeout=None, reconnect=True):
+        '''Gather data for service via device REST API'''
+        raise NotImplementedError(
+            f'{self.address}: REST transport is not supported')
+
+    async def _fetch_init_dev_data_devtype(self, reconnect: bool):
+        """Fill in the boot time of the node by running requisite cmd"""
+        await self._exec_cmd(self._parse_init_dev_data,
+                             ["/system resource print", "/system identity print"],
+                             None, 'text', reconnect=reconnect)
+
+    async def _parse_init_dev_data_devtype(self, output, cb_token) -> None:
+        """Parse the uptime command output"""
+
+        if output[0]["status"] == 0:
+            self.bootupTimestamp = int(output[0]["data"])
+        if (len(output) > 1) and (output[1]["status"] == 0):
+            self.hostname = output[1]["data"].strip()
+        if (len(output) > 2) and (output[2]["status"] == 0):
+            self._extract_nos_version(output[1]["data"])
+
+    def _extract_nos_version(self, data: str) -> None:
+        match = re.search(r'Version:\s+SONiC-OS-([^-]+)', data)
+        if match:
+            self.version = match.group(1).strip()
+        else:
+            self.logger.warning(
+                f'Cannot parse version from {self.address}:{self.port}')
+            self.version = "all"
 
 
 class PanosNode(Node):
