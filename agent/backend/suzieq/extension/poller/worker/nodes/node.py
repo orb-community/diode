@@ -446,7 +446,7 @@ class Node:
                     self.logger.warn(
                         f'{self.address}: Platform found! '
                         f'{platform}')
-                    if platform == 'Mikrotik':
+                    if platform.find("Mikrotik") >= 0:
                         devtype = "routeros"
                         self.logger.warn(
                             f'{self.address}: Recognized device Mikrotik!!! '
