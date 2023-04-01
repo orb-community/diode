@@ -432,6 +432,7 @@ class Node:
         elif (len(output) > 2) and (output[2]["status"] == 0):
             devtype = 'unsupported'
             data = output[2]["data"]
+            version_str = data
             if data:
                 pmatch = re.search(r'\s+platform:\s(\S+)+', data)
                 if pmatch:
@@ -442,7 +443,10 @@ class Node:
                         devtype = "routeros"
                         self.logger.warn(
                             f'{self.address}: Recognized device Mikrotik!!! '
-                            f'{devtype}')                            
+                            f'{devtype}')
+                        hmatch = re.search(r'\s+name:\s(\S+)+', data)
+                        if hmatch:
+                            hostname = str(hmatch.group(1))
                     else:
                         self.logger.warn(
                             f'{self.address}: Unrecognized device: '
