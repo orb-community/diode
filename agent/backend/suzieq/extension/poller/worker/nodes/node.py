@@ -246,7 +246,6 @@ class Node:
     def is_connected(self):
         '''Is there connectivity to the device at the transport level'''
         return self._conn is not None
-
     def _decrypt_pvtkey(self, pvtkey_file: str, passphrase: str) -> str:
         """Decrypt private key file"""
 
@@ -346,10 +345,13 @@ class Node:
         hostname = None
         self.logger.warn(f'{self.address}: length: '
                          f'{len(output)}')       
-
-        if output[0]["status"] == 0:
-            self.logger.warn(f'{self.address}: outputs0: '
+        self.logger.warn(f'{self.address}: outputs0: '
                              f'{output[0]["status"]}')
+        self.logger.warn(f'{self.address}: outputs1: '
+                     f'{output[1]["status"]}')
+        self.logger.warn(f'{self.address}: outputs2: '
+                     f'{output[2]["status"]}')
+        if output[0]["status"] == 0:
             # don't keep trying if we're connected to an unsupported dev
             devtype = 'unsupported'
             data = output[0]["data"]
