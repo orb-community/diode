@@ -2069,7 +2069,8 @@ class SonicNode(Node):
             self.logger.warning(
                 f'Cannot parse version from {self.address}:{self.port}')
             self.version = "all"
-            
+
+
 class RouterosNode(Node):
     '''RouterOS Node-specific implementtaion'''
 
