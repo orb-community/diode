@@ -441,7 +441,7 @@ class Node:
             if data:
                 pmatch = re.search(r'\s+platform:\s(\S+)+', data)
                 if pmatch:
-                    platform = pmatch.group(1)
+                    platform = strip(pmatch.group(1))
                     self.logger.warn(
                         f'{self.address}: Platform found! '
                         f'{platform}')
