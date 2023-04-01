@@ -347,29 +347,9 @@ class Node:
         self.logger.info(f'{self.address}: length: '
                          f'{len(output)}')       
 
-        if (len(output) > 2) and (output[2]["status"] == 0):
-            self.logger.info(f'{self.address}: outputs2: ' 
-                             f'{output[2]["status"]}') 
-            # checking mikrotik support
-            devtype = 'unsupported'
-            data = output[2]["data"]
-            version_str = data
-            if 'Mikrotik' in data:
-                devtype = "routeros"
-                self.logger.info(
-                    f'{self.address}: Recognized device Mikrotik: '
-                    f'{devtype}')
-                
-            if devtype == "routeros":
-                if (len(output) > 3) and (output[3]["status"] == 0):
-                    data = output[3]["data"]
-                    hmatch = re.search(r'name:\s+(\S+)\n', data)
-                    if hmatch:
-                        hostname = hmatch.group(1)
-
-        elif output[0]["status"] == 0:
-            self.logger.info(f'{self.address}: outputs1: '
-                             f'{output[1]["status"]}')
+        if output[0]["status"] == 0:
+            self.logger.warn(f'{self.address}: outputs0: '
+                             f'{output[0]["status"]}')
             # don't keep trying if we're connected to an unsupported dev
             devtype = 'unsupported'
             data = output[0]["data"]
@@ -407,6 +387,11 @@ class Node:
                 devtype = "iosxe"
             elif "Cisco IOS Software" in data:
                 devtype = "ios"
+            elif 'Mikrotik' in data:
+                devtype = "routeros"
+                self.logger.info(
+                    f'{self.address}: Recognized device Mikrotik: '
+                    f'{devtype}')
             else:
                 self.logger.info(
                     f'{self.address}: Got unrecognized device show version: '
