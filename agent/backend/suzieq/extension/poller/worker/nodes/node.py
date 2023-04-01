@@ -344,8 +344,25 @@ class Node:
     async def _parse_device_type_hostname(self, output, _) -> None:
         devtype = ""
         hostname = None
-        
-        if output[0]["status"] == 0:
+        if (len(output) > 2) and (output[2]["status"] == 0):
+            # checking mikrotik support
+            devtype = 'unsupported'
+            data = output[2]["data"]
+            version_str = data
+            if 'Mikrotik' in data:
+                devtype = "routeros"
+                self.logger.info(
+                    f'{self.address}: Recognized device Mikrotik: '
+                    f'{devtype}')
+                
+            if devtype == "routeros":
+                if (len(output) > 3) and (output[3]["status"] == 0):
+                    data = output[3]["data"]
+                    hmatch = re.search(r'name:\s+(\S+)\n', data)
+                    if hmatch:
+                        hostname = hmatch.group(1)
+
+        elif output[0]["status"] == 0:
             # don't keep trying if we're connected to an unsupported dev
             devtype = 'unsupported'
             data = output[0]["data"]
@@ -427,24 +444,6 @@ class Node:
                 # Hostname is the last line of the output
                 if len(data.strip()) > 0:
                     hostname = data.splitlines()[-1].strip()
-                    
-        elif (len(output) > 2) and (output[2]["status"] == 0):
-            # don't keep trying if we're connected to an unsupported dev
-            devtype = 'unsupported'
-            data = output[2]["data"]
-            version_str = data
-            if 'Mikrotik' in data:
-                devtype = "routeros"
-                self.logger.info(
-                    f'{self.address}: Recognized device Mikrotik: '
-                    f'{devtype}')
-                
-            if devtype == "routeros":
-                if (len(output) > 3) and (output[3]["status"] == 0):
-                    data = output[3]["data"]
-                    hmatch = re.search(r'name:\s+(\S+)\n', data)
-                    if hmatch:
-                        hostname = hmatch.group(1)
 
         if devtype == 'unsupported':
             if not self.current_exception:
