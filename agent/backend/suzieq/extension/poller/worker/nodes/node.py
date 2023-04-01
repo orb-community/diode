@@ -565,6 +565,8 @@ class Node:
                 self.__class__ = PanosNode
             elif self.devtype == "linux":
                 self.__class__ = LinuxNode
+            elif self.devtype == "routeros":
+                self.__class__ = RouterosNode
 
         # Now invoke the class specific NOS version extraction
         if version_str:
