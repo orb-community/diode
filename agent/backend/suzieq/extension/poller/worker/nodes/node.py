@@ -522,7 +522,7 @@ class Node:
         # hostnamectl on Linux systems. That's all we support today.
         await self._exec_cmd(self._parse_device_type_hostname,
                              ["show version",
-                              "cat /etc/os-release && hostname", "/system resource print", "/system identity print" ],
+                              "cat /etc/os-release && hostname", "/system resource print;/system identity print" ],
                              None, 'text', only_one=True)
 
     def _set_devtype(self, devtype: str, version_str: str) -> None:
