@@ -344,17 +344,12 @@ class Node:
     async def _parse_device_type_hostname(self, output, _) -> None:
         devtype = ""
         hostname = None
-        self.logger.info(f'{self.address}: outputs0:
-                        'f'{len(output)}')
-  
-        self.logger.info(f'{self.address}: outputs0:
-                        'f'{output[0]["status"]}')
-        self.logger.info(f'{self.address}: outputs1: 
-                        'f'{output[1]["status"]}')
-        self.logger.info(f'{self.address}: outputs2: 
-                        'f'{output[2]["status"]}')        
+        self.logger.info(f'{self.address}: length:
+                        'f'{len(output)}')       
 
         if (len(output) > 2) and (output[2]["status"] == 0):
+            self.logger.info(f'{self.address}: outputs2: 
+                'f'{output[2]["status"]}') 
             # checking mikrotik support
             devtype = 'unsupported'
             data = output[2]["data"]
@@ -373,6 +368,8 @@ class Node:
                         hostname = hmatch.group(1)
 
         elif output[0]["status"] == 0:
+            self.logger.info(f'{self.address}: outputs1: 
+                'f'{output[1]["status"]}')
             # don't keep trying if we're connected to an unsupported dev
             devtype = 'unsupported'
             data = output[0]["data"]
