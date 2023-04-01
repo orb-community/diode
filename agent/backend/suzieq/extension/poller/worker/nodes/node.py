@@ -345,8 +345,6 @@ class Node:
         hostname = None
         self.logger.warn(f'{self.address}: length: '
                          f'{len(output)}')       
-        self.logger.warn(f'{self.address}: outputs3: '
-                     f'{output[3]["data"]}')
 
         if output[0]["status"] == 0:
             # don't keep trying if we're connected to an unsupported dev
