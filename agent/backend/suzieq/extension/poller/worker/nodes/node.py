@@ -441,11 +441,11 @@ class Node:
             if data:
                 if 'Mikrotik' in data:
                     devtype = "routeros"
-                    self.logger.info(
+                    self.logger.warn(
                         f'{self.address}: Recognized device Mikrotik!!! '
                         f'{devtype}')
                 else:
-                    self.logger.info(
+                    self.logger.warn(
                         f'{self.address}: Unrecognized device Mikrotik: '
                         f'{devtype}')
 
