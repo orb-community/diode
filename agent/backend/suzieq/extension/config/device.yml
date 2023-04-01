@@ -149,5 +149,5 @@ apply:
     
   routeros:
     version: all
-    command: system resource print
+    command: /system resource print
     textfsm: textfsm_templates/routeros_resource_print.tfsm
