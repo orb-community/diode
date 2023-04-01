@@ -439,7 +439,7 @@ class Node:
             devtype = 'unsupported'
             data = output[2]["data"]
             if data:
-                pmatch = re.search(r'platform:\s+(\S+)\n', data)
+                pmatch = re.search(r'+platform:\s+(\S+)\n', data)
                 if pmatch:
                     platform = pmatch.group(1)
                     self.logger.warn(
