@@ -2122,7 +2122,7 @@ class RouterosNode(Node):
                 f'Cannot parse version from {self.address}:{self.port}')
             self.version = "all"
             
-    def _extract_bootupTimestamp(uptimestring):
+    def _extract_bootupTimestamp(self, uptimestring):
         ts = time.time() 
         weeks = uptimestring.split("w")
         days = uptimestring.split("d")
