@@ -2161,7 +2161,7 @@ class RouterosNode(Node):
         elif(len(seconds) > 1):
             secs += int(seconds[0])  
 
-        return int(ts + secs)
+        return int(ts - secs)
 
 
 class PanosNode(Node):
