@@ -441,9 +441,6 @@ class Node:
                     mk2 = platform.find("MikroTik")                 
                     if mk1 >= 0 or mk2 >=0:
                         devtype = "routeros"
-                        self.logger.warn(
-                            f'{self.address}: Recognized device Mikrotik!!! '
-                            f'{devtype}')
                         hmatch = re.search(r'\s+name:\s(\S+)+', data)
                         if hmatch:
                             hostname = str(hmatch.group(1))
@@ -2102,27 +2099,69 @@ class RouterosNode(Node):
     async def _fetch_init_dev_data_devtype(self, reconnect: bool):
         """Fill in the boot time of the node by running requisite cmd"""
         await self._exec_cmd(self._parse_init_dev_data,
-                             ["/system resource print", "/system identity print"],
+                             ["/system resource print;/system identity print"],
                              None, 'text', reconnect=reconnect)
 
     async def _parse_init_dev_data_devtype(self, output, cb_token) -> None:
         """Parse the uptime command output"""
 
         if output[0]["status"] == 0:
-            self.bootupTimestamp = int(output[0]["data"])
-        if (len(output) > 1) and (output[1]["status"] == 0):
-            self.hostname = output[1]["data"].strip()
-        if (len(output) > 2) and (output[2]["status"] == 0):
-            self._extract_nos_version(output[1]["data"])
+            umatch = re.search(r'\s+uptime:\s(\S+)+', output[0]["data"])
+            uptime = str(umatch.group(1))
+            hmatch = re.search(r'\s+name:\s(\S+)+', output[0]["data"])           
+            self.bootupTimestamp = self._extract_bootupTimestamp(uptime)
+            self.hostname = str(hmatch.group(1)).strip()
+            self._extract_nos_version(output[0]["data"])
 
     def _extract_nos_version(self, data: str) -> None:
-        match = re.search(r'Version:\s+SONiC-OS-([^-]+)', data)
+        match = re.search(r'\s+version:\s(\S+)+', data)
         if match:
             self.version = match.group(1).strip()
         else:
             self.logger.warning(
                 f'Cannot parse version from {self.address}:{self.port}')
             self.version = "all"
+            
+    def _extract_bootupTimestamp(uptimestring):
+        ts = time.time() 
+        weeks = uptimestring.split("w")
+        days = uptimestring.split("d")
+        hours = uptimestring.split("h")
+        minutes = uptimestring.split("m")
+        seconds = uptimestring.split("s")
+        secs = 0
+        if(len(weeks) > 1):
+            secs += int(weeks[0]) * 604800
+            days = weeks[1].split("d")
+            secs += int(days[0]) * 86400
+            hours = days[1].split("h")
+            secs += int(hours[0]) * 3600
+            minutes = hours[1].split("m")
+            secs += int(minutes[0]) * 60
+            seconds = minutes[1].split("s")
+            secs += int(seconds[0])
+        elif(len(days) > 1):
+            secs = int(days[0]) * 86400
+            hours = days[1].split("h")
+            secs += int(hours[0]) * 3600    
+            minutes = hours[1].split("m")
+            secs += int(minutes[0]) * 60
+            seconds = minutes[1].split("s")
+            secs += int(seconds[0])
+        elif(len(hours) > 1):
+            secs += int(hours[0]) * 3600 
+            minutes = hours[1].split("m")
+            secs += int(minutes[0]) * 60 
+            seconds = minutes[1].split("s")
+            secs += int(seconds[0])
+        elif(len(minutes) > 1):
+            secs += int(minutes[0]) * 60
+            seconds = minutes[1].split("s")
+            secs += int(seconds[0])
+        elif(len(seconds) > 1):
+            secs += int(seconds[0])  
+
+        return int(ts + secs)
 
 
 class PanosNode(Node):
