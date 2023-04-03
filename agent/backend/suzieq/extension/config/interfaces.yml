@@ -264,3 +264,18 @@ apply:
           "ip: _ip",
           "fwd: master"
         ]'
+
+  routeros:
+    version: all
+    command:
+        - command: /interface print
+          textfsm: textfsm_templates/routeros_interface.tfsm
+        - command: /interface ethernet print
+          textfsm: textfsm_templates/routeros_einterface.tfsm
+        - command: /interface wireless print
+          textfsm: textfsm_templates/routeros_winterface.tfsm
+        - command: /ip address print
+          textfsm: textfsm_templates/routeros_ipaddr.tfsm
+        - command: /ip address print
+          textfsm: textfsm_templates/routeros_bgp.tfsm
+          
