@@ -268,14 +268,12 @@ apply:
   routeros:
     version: all
     command:
-        - command: /interface print
+        - command: /interface print detail
           textfsm: textfsm_templates/routeros_interface.tfsm
-        - command: /interface ethernet print
+        - command: /interface ethernet print detail
           textfsm: textfsm_templates/routeros_einterface.tfsm
-        - command: /interface wireless print
+        - command: /interface wireless print detail
           textfsm: textfsm_templates/routeros_winterface.tfsm
         - command: /ip address print
           textfsm: textfsm_templates/routeros_ipaddr.tfsm
-        - command: /ip address print
-          textfsm: textfsm_templates/routeros_bgp.tfsm
           
