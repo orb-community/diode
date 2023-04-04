@@ -42,6 +42,7 @@ type DbDevice struct {
 	Model        string `json:"model"`
 	State        string `json:"state"`
 	Vendor       string `json:"vendor"`
+	Os           string `json:"os"`
 	NetboxRefId  int64  `json:"netbox_id,omitempty"`
 	Blob         string `json:"blob,omitempty"`
 }

@@ -54,7 +54,7 @@ func New(ctx context.Context, cancelFunc context.CancelFunc, logger *zap.Logger,
 		cancelFunc()
 		return nil, err
 	}
-	translate := translate.New(ctx, logger, config, &service, &pusher)
+	translate := translate.New(ctx, logger, config, service, pusher)
 	return &DiodeService{
 		logger:             logger,
 		config:             config,
