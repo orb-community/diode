@@ -92,9 +92,6 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			if err := st.checkExistingInterfaces(&newDevice); err != nil {
-				return err
-			}
 		}
 		return errs
 	} else if ifs, ok := data.([]storage.DbInterface); ok {
