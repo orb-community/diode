@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	yson "github.com/ghodss/yaml"
 	"github.com/go-cmd/cmd"
 	"github.com/orb-community/diode/agent/backend"
 	"go.uber.org/zap"
@@ -35,6 +36,7 @@ type suzieqBackend struct {
 	startTime     time.Time
 	cancelFunc    context.CancelFunc
 	ctx           context.Context
+	extraConfig   string
 }
 
 var _ backend.Backend = (*suzieqBackend)(nil)
@@ -59,11 +61,23 @@ func (s *suzieqBackend) getProcRunningStatus() (backend.RunningStatus, string, e
 	return backend.Running, "", nil
 }
 
-func (s *suzieqBackend) Configure(logger *zap.Logger, name string, pusher chan []byte, data map[string]interface{}) error {
+func (s *suzieqBackend) Configure(logger *zap.Logger, name string, pusher chan []byte, data map[string]interface{}, conf map[string]interface{}) error {
 	var prs bool
 	var inventory interface{}
 	if inventory, prs = data["inventory"]; !prs {
 		return errors.New("you must set suzieq inventory")
+	}
+
+	if conf != nil {
+		y, err := yaml.Marshal(&conf)
+		if err != nil {
+			return err
+		}
+		j, err := yson.YAMLToJSON(y)
+		if err != nil {
+			return err
+		}
+		s.extraConfig = "\"config\":" + string(j) + ","
 	}
 
 	d, err := yaml.Marshal(&inventory)
@@ -173,7 +187,7 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 }
 
 func (s *suzieqBackend) proccessDiscovery(data string) {
-	discoveryData := []byte(s.returnPrefix + data + "}")
+	discoveryData := []byte(s.returnPrefix + s.extraConfig + data + "}")
 	var jsonData map[string]map[string]interface{}
 	if err := json.Unmarshal(discoveryData, &jsonData); err != nil {
 		s.logger.Error("process suzieq output error", zap.Error(err))

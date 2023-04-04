@@ -14,6 +14,7 @@ type Service interface {
 type DbInterface struct {
 	Id          string      `json:"id,omitempty"`
 	Policy      string      `json:"policy,omitempty"`
+	Config      interface{} `json:"config,omitempty"`
 	Namespace   string      `json:"namespace"`
 	Hostname    string      `json:"hostname"`
 	Name        string      `json:"ifname"`
@@ -33,27 +34,29 @@ type IpAddress struct {
 }
 
 type DbDevice struct {
-	Id           string `json:"id,omitempty"`
-	Policy       string `json:"policy,omitempty"`
-	SerialNumber string `json:"serialNumber"`
-	Namespace    string `json:"namespace"`
-	Hostname     string `json:"hostname"`
-	Address      string `json:"address"`
-	Model        string `json:"model"`
-	State        string `json:"state"`
-	Vendor       string `json:"vendor"`
-	Os           string `json:"os"`
-	NetboxRefId  int64  `json:"netbox_id,omitempty"`
-	Blob         string `json:"blob,omitempty"`
+	Id           string      `json:"id,omitempty"`
+	Policy       string      `json:"policy,omitempty"`
+	Config       interface{} `json:"config,omitempty"`
+	SerialNumber string      `json:"serialNumber"`
+	Namespace    string      `json:"namespace"`
+	Hostname     string      `json:"hostname"`
+	Address      string      `json:"address"`
+	Model        string      `json:"model"`
+	State        string      `json:"state"`
+	Vendor       string      `json:"vendor"`
+	Os           string      `json:"os"`
+	NetboxRefId  int64       `json:"netbox_id,omitempty"`
+	Blob         string      `json:"blob,omitempty"`
 }
 
 type DbVlan struct {
-	Id          string `json:"id,omitempty"`
-	Policy      string `json:"policy,omitempty"`
-	Namespace   string `json:"namespace"`
-	Hostname    string `json:"hostname"`
-	Name        string `json:"vlanName"`
-	State       string `json:"state"`
-	NetboxRefId int64  `json:"netbox_id,omitempty"`
-	Blob        string `json:"blob,omitempty"`
+	Id          string      `json:"id,omitempty"`
+	Policy      string      `json:"policy,omitempty"`
+	Config      interface{} `json:"config,omitempty"`
+	Namespace   string      `json:"namespace"`
+	Hostname    string      `json:"hostname"`
+	Name        string      `json:"vlanName"`
+	State       string      `json:"state"`
+	NetboxRefId int64       `json:"netbox_id,omitempty"`
+	Blob        string      `json:"blob,omitempty"`
 }
