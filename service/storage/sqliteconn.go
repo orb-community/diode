@@ -38,7 +38,7 @@ func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, names
 	var ipsAsString string
 	for selectResult.Next() {
 		var iface DbInterface
-		err := selectResult.Scan(&iface.Id, &iface.Policy, configAsString, &iface.Namespace, &iface.Hostname, &iface.Name, &iface.AdminState,
+		err := selectResult.Scan(&iface.Id, &iface.Policy, &configAsString, &iface.Namespace, &iface.Hostname, &iface.Name, &iface.AdminState,
 			&iface.Mtu, &iface.Speed, &iface.MacAddress, &iface.IfType, &iface.NetboxRefId, &ipsAsString, &iface.Blob)
 		if err != nil {
 			return nil, errors.Join(errors.New("storage ifce struct fail"), err)
