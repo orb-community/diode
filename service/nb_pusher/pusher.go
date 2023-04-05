@@ -247,7 +247,7 @@ func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
 		return invalid_id, err
 	}
 
-	ipA, _, err := net.ParseCIDR(ipData.Address)
+	ipA, prefix, err := net.ParseCIDR(ipData.Address)
 	if err != nil {
 		return invalid_id, err
 	}
@@ -261,8 +261,7 @@ func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
 	var data models.WritableIPAddress
 
 	//generate ip prefix by our own.
-	//Disabled for now
-	//nb.createIpPrefix(prefix.String(), nb.discoveryTag)
+	nb.createIpPrefix(prefix.String(), nb.discoveryTag)
 
 	data.Address = &ipData.Address
 	data.AssignedObjectID = &ipData.AsgdObjID
