@@ -109,6 +109,9 @@ diode:
     discovery_1:
       kind: discovery
       backend: suzieq
+      config:
+        netbox:
+          site: Nova York NY
       data:   
         inventory: 
           sources:

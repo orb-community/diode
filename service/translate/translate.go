@@ -45,6 +45,9 @@ type deviceJsonReturn struct {
 			Name string `json:"name"`
 		} `json:"manufacturers"`
 	} `json:"platform"`
+	Site *struct {
+		Name string `json:"name"`
+	} `json:"site,omitempty"`
 }
 
 type ifJsonReturn struct {
@@ -152,8 +155,33 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 	return errors.New("no valid translatable data found")
 }
 
+func (st *SuzieQTranslate) translateNetboxConfig(conf interface{}, reqKey string) interface{} {
+	c, ok := conf.(map[string]interface{})
+	if ok {
+		n, ok := c["netbox"].(map[string]interface{})
+		if ok {
+			for k, v := range n {
+				if k == reqKey {
+					return v
+				}
+			}
+		}
+	}
+	st.logger.Warn("value for the requered key not found", zap.String("key", reqKey))
+	return nil
+}
+
 func (st *SuzieQTranslate) translateDevice(device *storage.DbDevice) ([]byte, error) {
 	var ret deviceJsonReturn
+	if device.Config != nil {
+		if value := st.translateNetboxConfig(device.Config, "site"); value != nil {
+			if name, ok := value.(string); ok {
+				ret.Site = &struct {
+					Name string `json:"name"`
+				}{Name: name}
+			}
+		}
+	}
 	ret.Name = device.Hostname
 	ret.Status = device.State
 	ret.Serial = device.SerialNumber
