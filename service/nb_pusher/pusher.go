@@ -42,6 +42,7 @@ type NetboxPusher struct {
 	unkMfrID       int64
 	unkPlatID      int64
 	tagsInit       bool
+	loopBackNet    net.IPNet
 	discoveryTag   []*models.NestedTag
 	placeholderTag []*models.NestedTag
 }
@@ -66,8 +67,12 @@ const (
 )
 
 func New(ctx context.Context, logger *zap.Logger, config *config.Config) Pusher {
+	lp := net.IPNet{
+		IP:   net.IPv4(127, 0, 0, 0),
+		Mask: net.CIDRMask(8, 32),
+	}
 	return &NetboxPusher{ctx: ctx, logger: logger, config: config, unkSiteID: invalid_id,
-		unkRoleID: invalid_id, unkDtypeID: invalid_id, unkMfrID: invalid_id, tagsInit: false}
+		unkRoleID: invalid_id, unkDtypeID: invalid_id, unkMfrID: invalid_id, tagsInit: false, loopBackNet: lp}
 }
 
 func (nb *NetboxPusher) Start() error {
@@ -242,13 +247,22 @@ func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
 		return invalid_id, err
 	}
 
+	ipA, _, err := net.ParseCIDR(ipData.Address)
+	if err != nil {
+		return invalid_id, err
+	}
+
+	if nb.loopBackNet.Contains(ipA) {
+		nb.logger.Info("ip_address is a loopback address. Therefore, it will not be created", zap.String("ip_address", ipData.Address))
+		return invalid_id, nil
+	}
+
 	ip := ipam.NewIpamIPAddressesCreateParams()
 	var data models.WritableIPAddress
 
-	//generate ip prefix by our own
-	if _, prefix, err := net.ParseCIDR(ipData.Address); err == nil {
-		nb.createIpPrefix(prefix.String(), nb.discoveryTag)
-	}
+	//generate ip prefix by our own.
+	//Disabled for now
+	//nb.createIpPrefix(prefix.String(), nb.discoveryTag)
 
 	data.Address = &ipData.Address
 	data.AssignedObjectID = &ipData.AsgdObjID
