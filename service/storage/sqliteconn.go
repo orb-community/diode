@@ -140,6 +140,36 @@ func (s sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace
 	return vlans, nil
 }
 
+func (s sqliteStorage) GetInventoriesByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInventory, error) {
+	selectResult, err := s.db.Query(`
+		SELECT id, policy, config, namespace, hostname, name, description, vendor, serial, part_num, type, netbox_id, json_data
+		FROM inventories
+		WHERE policy = $1 AND namespace = $2 AND hostname = $3
+	`, policy, namespace, hostname)
+	if err != nil {
+		return nil, errors.Join(errors.New("storage fetch inventory fail"), err)
+	}
+	var inventories []DbInventory
+	var configAsString string
+	for selectResult.Next() {
+		var inventory DbInventory
+		err := selectResult.Scan(&inventory.Id, &inventory.Policy, &configAsString, &inventory.Namespace, &inventory.Hostname, &inventory.Name,
+			&inventory.Descr, &inventory.Vendor, &inventory.Serial, &inventory.PartNum, &inventory.Type, &inventory.NetboxRefId, &inventory.Blob)
+		if err != nil {
+			return nil, errors.Join(errors.New("storage create inventory struct fail"), err)
+		}
+		if len(configAsString) > 0 {
+			err = json.Unmarshal([]byte(configAsString), &inventory.Config)
+			if err != nil {
+				return nil, errors.Join(errors.New("storage config parse fail"), err)
+			}
+		}
+		inventories = append(inventories, inventory)
+	}
+
+	return inventories, nil
+}
+
 func (s sqliteStorage) UpdateInterface(id string, netboxId int64) (DbInterface, error) {
 	_, err := s.db.Exec(`
 	UPDATE interfaces SET netbox_id = $1 WHERE id = $2`, netboxId, id)
@@ -225,21 +255,101 @@ func (s sqliteStorage) UpdateVlan(id string, netboxId int64) (DbVlan, error) {
 	return vlan, nil
 }
 
+func (s sqliteStorage) UpdateInventory(id string, netboxId int64) (DbInventory, error) {
+	_, err := s.db.Exec(`
+	UPDATE inventories SET netbox_id = $1 WHERE id = $2`, netboxId, id)
+	if err != nil {
+		return DbInventory{}, errors.Join(errors.New("storage update inventory fail"), err)
+	}
+	selectResult := s.db.QueryRow(`
+		SELECT id, policy, config, namespace, hostname, name, description, vendor, serial, part_num, type, netbox_id, json_data
+		FROM inventories
+		WHERE id = $1`, id)
+	var inventory DbInventory
+	var configAsString string
+	err = selectResult.Scan(&inventory.Id, &inventory.Policy, &configAsString, &inventory.Namespace, &inventory.Hostname, &inventory.Name,
+		&inventory.Descr, &inventory.Vendor, &inventory.Serial, &inventory.PartNum, &inventory.Type, &inventory.NetboxRefId, &inventory.Blob)
+	if err != nil {
+		return DbInventory{}, errors.Join(errors.New("storage create inventory struct fail"), err)
+	}
+	if len(configAsString) > 0 {
+		err = json.Unmarshal([]byte(configAsString), &inventory.Config)
+		if err != nil {
+			return DbInventory{}, errors.Join(errors.New("storage config parse fail"), err)
+		}
+	}
+	return inventory, nil
+}
+
 func (s sqliteStorage) Save(policy string, jsonData map[string]interface{}) (stored interface{}, err error) {
 	confData := jsonData["config"]
-	ifData, ok := jsonData["interfaces"].([]interface{})
+	data, ok := jsonData["interfaces"].([]interface{})
 	if ok {
-		return s.saveInterfaces(policy, confData, ifData, err)
+		return s.saveInterfaces(policy, confData, data, err)
 	}
-	dData, ok := jsonData["device"].([]interface{})
+	data, ok = jsonData["device"].([]interface{})
 	if ok {
-		return s.saveDevices(policy, confData, dData, err)
+		return s.saveDevices(policy, confData, data, err)
 	}
-	vData, ok := jsonData["vlan"].([]interface{})
+	data, ok = jsonData["vlan"].([]interface{})
 	if ok {
-		return s.saveVlans(policy, confData, vData, err)
+		return s.saveVlans(policy, confData, data, err)
+	}
+	data, ok = jsonData["inventory"].([]interface{})
+	if ok {
+		return s.saveInventories(policy, confData, data, err)
 	}
 	return nil, errors.New("not able to save anything from entry")
+}
+
+func (s sqliteStorage) saveInventories(policy string, conf interface{}, inData []interface{}, err error) (interface{}, error) {
+	inventories := make([]DbInventory, len(inData))
+	var errs error
+	var configAsString string
+	if conf != nil {
+		b, err := json.Marshal(conf)
+		if err != nil {
+			errs = errors.Join(errs, err)
+		} else {
+			configAsString = string(b)
+		}
+	}
+	for _, inventoryData := range inData {
+		dataAsString, err := json.Marshal(inventoryData)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		inventory := DbInventory{
+			Id:          uuid.NewString(),
+			Config:      conf,
+			Policy:      policy,
+			NetboxRefId: -1,
+			Blob:        string(dataAsString),
+		}
+		err = json.Unmarshal(dataAsString, &inventory)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		statement, err := s.db.Prepare(
+			`INSERT INTO inventories 
+					( id, policy, config, namespace, hostname, name, description, vendor, serial, part_num, type, netbox_id, json_data)
+				VALUES 
+					( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 )`)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		_, err = statement.Exec(inventory.Id, policy, configAsString, inventory.Namespace, inventory.Hostname, inventory.Name,
+			inventory.Descr, inventory.Vendor, inventory.Serial, inventory.PartNum, inventory.Type, inventory.NetboxRefId, dataAsString)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		inventories = append(inventories, inventory)
+	}
+	return inventories, errs
 }
 
 func (s sqliteStorage) saveVlans(policy string, conf interface{}, vData []interface{}, err error) (interface{}, error) {
@@ -500,6 +610,34 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		logger.Error("error creating vlans table", zap.Error(err))
 		return nil, err
 	}
+	createInventoryTableStatement, err := db.Prepare(
+		`CREATE TABLE IF NOT EXISTS inventories 
+		(
+		    id TEXT PRIMARY KEY, 
+		 	policy TEXT,
+			config TEXT,
+		 	namespace TEXT,
+		 	hostname TEXT,
+		 	name TEXT,
+		 	description TEXT,
+		 	vendor TEXT,
+		 	serial TEXT,
+		 	part_num TEXT,
+			 type TEXT,
+		 	netbox_id INTEGER, 
+		    json_data TEXT 
+		)`)
+	if err != nil {
+		logger.Error("error preparing inventories statement ", zap.Error(err))
+		return nil, err
+	}
+	_, err = createInventoryTableStatement.Exec()
+	if err != nil {
+		logger.Error("error creating inventories table", zap.Error(err))
+		return nil, err
+	}
+	logger.Debug("successfully created inventories table")
+
 	constraint1TableStatement, err := db.Prepare(
 		`CREATE UNIQUE INDEX IF NOT EXISTS interfaces_uniques ON interfaces(policy, namespace, hostname, name)`)
 	if err != nil {
@@ -529,6 +667,17 @@ func startSqliteDb(logger *zap.Logger) (db *sql.DB, err error) {
 		return nil, err
 	}
 	_, err = constraint3TableStatement.Exec()
+	if err != nil {
+		logger.Error("error constraints execution", zap.Error(err))
+		return nil, err
+	}
+	constraint4TableStatement, err := db.Prepare(
+		`CREATE UNIQUE INDEX IF NOT EXISTS inventories_uniques ON inventories(policy, namespace, hostname, name)`)
+	if err != nil {
+		logger.Error("error constraints statement ", zap.Error(err))
+		return nil, err
+	}
+	_, err = constraint4TableStatement.Exec()
 	if err != nil {
 		logger.Error("error constraints execution", zap.Error(err))
 		return nil, err
