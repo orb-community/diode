@@ -5,10 +5,12 @@ type Service interface {
 	UpdateInterface(id string, netboxId int64) (DbInterface, error)
 	UpdateDevice(id string, netboxId int64) (DbDevice, error)
 	UpdateVlan(id string, netboxId int64) (DbVlan, error)
+	UpdateInventory(id string, netboxId int64) (DbInventory, error)
 	GetInterfaceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInterface, error)
 	GetDevicesByPolicyAndNamespace(policy, namespace string) ([]DbDevice, error)
 	GetDeviceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) (DbDevice, error)
 	GetVlansByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbVlan, error)
+	GetInventoriesByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInventory, error)
 }
 
 type DbInterface struct {
@@ -57,6 +59,22 @@ type DbVlan struct {
 	Hostname    string      `json:"hostname"`
 	Name        string      `json:"vlanName"`
 	State       string      `json:"state"`
+	NetboxRefId int64       `json:"netbox_id,omitempty"`
+	Blob        string      `json:"blob,omitempty"`
+}
+
+type DbInventory struct {
+	Id          string      `json:"id,omitempty"`
+	Policy      string      `json:"policy,omitempty"`
+	Config      interface{} `json:"config,omitempty"`
+	Namespace   string      `json:"namespace"`
+	Hostname    string      `json:"hostname"`
+	Name        string      `json:"name"`
+	Descr       string      `json:"descr"`
+	Vendor      string      `json:"vendor"`
+	Serial      string      `json:"serial"`
+	PartNum     string      `json:"partNum"`
+	Type        string      `json:"type"`
 	NetboxRefId int64       `json:"netbox_id,omitempty"`
 	Blob        string      `json:"blob,omitempty"`
 }
