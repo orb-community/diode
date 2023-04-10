@@ -70,3 +70,13 @@ type NetboxIpAddress struct {
 	AsgdObjType string `json:"assigned_object_type"`
 	AsgdObjID   int64  `json:"assigned_object_id"`
 }
+
+type NetboxInventory struct {
+	DeviceID int64         `json:"device_id"`
+	Name     string        `json:"name"`
+	Mfr      *NetboxObject `json:"manufacturers"`
+	AssetTag string        `json:"asset_tag"`
+	PartId   string        `json:"part_id"`
+	Descr    string        `json:"description"`
+	Serial   string        `json:"serial"`
+}

@@ -29,6 +29,7 @@ type Pusher interface {
 	CreateDevice([]byte) (int64, error)
 	CreateInterface([]byte) (int64, error)
 	CreateInterfaceIpAddress([]byte) (int64, error)
+	CreateInventory([]byte) (int64, error)
 }
 
 type NetboxPusher struct {
@@ -42,6 +43,7 @@ type NetboxPusher struct {
 	unkMfrID       int64
 	unkPlatID      int64
 	tagsInit       bool
+	loopBackNet    net.IPNet
 	discoveryTag   []*models.NestedTag
 	placeholderTag []*models.NestedTag
 }
@@ -66,8 +68,12 @@ const (
 )
 
 func New(ctx context.Context, logger *zap.Logger, config *config.Config) Pusher {
+	lp := net.IPNet{
+		IP:   net.IPv4(127, 0, 0, 0),
+		Mask: net.CIDRMask(8, 32),
+	}
 	return &NetboxPusher{ctx: ctx, logger: logger, config: config, unkSiteID: invalid_id,
-		unkRoleID: invalid_id, unkDtypeID: invalid_id, unkMfrID: invalid_id, tagsInit: false}
+		unkRoleID: invalid_id, unkDtypeID: invalid_id, unkMfrID: invalid_id, tagsInit: false, loopBackNet: lp}
 }
 
 func (nb *NetboxPusher) Start() error {
@@ -242,13 +248,21 @@ func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
 		return invalid_id, err
 	}
 
+	ipA, prefix, err := net.ParseCIDR(ipData.Address)
+	if err != nil {
+		return invalid_id, err
+	}
+
+	if nb.loopBackNet.Contains(ipA) {
+		nb.logger.Info("ip_address is a loopback address. Therefore, it will not be created", zap.String("ip_address", ipData.Address))
+		return invalid_id, nil
+	}
+
 	ip := ipam.NewIpamIPAddressesCreateParams()
 	var data models.WritableIPAddress
 
-	//generate ip prefix by our own
-	if _, prefix, err := net.ParseCIDR(ipData.Address); err == nil {
-		nb.createIpPrefix(prefix.String(), nb.discoveryTag)
-	}
+	//generate ip prefix by our own.
+	nb.createIpPrefix(prefix.String(), nb.discoveryTag)
 
 	data.Address = &ipData.Address
 	data.AssignedObjectID = &ipData.AsgdObjID
@@ -262,6 +276,58 @@ func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
 		return invalid_id, err
 	}
 	nb.logger.Info("ip address for interface created", zap.String("ip_address", ipData.Address))
+	return created.Payload.ID, nil
+}
+
+func (nb *NetboxPusher) CreateInventory(j []byte) (int64, error) {
+	var err error
+	if !nb.tagsInit {
+		if err = nb.initializeDiodeTags(); err != nil {
+			return invalid_id, err
+		}
+	}
+	var invData NetboxInventory
+	if err = json.Unmarshal(j, &invData); err != nil {
+		return invalid_id, err
+	}
+
+	inv := dcim.NewDcimInventoryItemsCreateParams()
+	var data models.WritableInventoryItem
+
+	var mfrID int64
+	if invData.Mfr != nil {
+		invData.Mfr.Slug = slug.Make(invData.Mfr.Name)
+		mfrID, err = nb.createManufacturer(invData.Mfr, nb.discoveryTag)
+		if err != nil {
+			return invalid_id, err
+		}
+	} else {
+		if nb.unkMfrID == invalid_id {
+			unkownObject := &NetboxObject{Name: unknown_name, Slug: unknown_slug}
+			if nb.unkMfrID, err = nb.createManufacturer(unkownObject, nb.placeholderTag); err != nil {
+				return invalid_id, err
+			}
+		}
+		mfrID = nb.unkMfrID
+	}
+
+	data.Device = &invData.DeviceID
+	data.Name = &invData.Name
+	data.AssetTag = &invData.AssetTag
+	data.Serial = invData.Serial
+	data.Description = invData.Descr
+	data.PartID = invData.PartId
+	data.Manufacturer = &mfrID
+	data.Discovered = true
+	data.Tags = nb.discoveryTag
+
+	inv.Data = &data
+	var created *dcim.DcimInventoryItemsCreateCreated
+	created, err = nb.client.Dcim.DcimInventoryItemsCreate(inv, nil)
+	if err != nil {
+		return invalid_id, err
+	}
+	nb.logger.Info("inventory item created", zap.String("inventory", invData.Name))
 	return created.Payload.ID, nil
 }
 

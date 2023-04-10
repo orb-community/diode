@@ -27,11 +27,16 @@ type Agent interface {
 	RestartBackend(ctx context.Context, backend string, reason string) error
 }
 
+type backendInfo struct {
+	be backend.Backend
+	st *backend.State
+	cf config.Policy
+}
+
 type diodeAgent struct {
 	logger         *zap.Logger
 	config         config.Config
-	backends       map[string]backend.Backend
-	backendState   map[string]*backend.State
+	backends       map[string]backendInfo
 	cancelFunction context.CancelFunc
 	pusher         pusher.Pusher
 }
@@ -52,20 +57,20 @@ func (a *diodeAgent) startPolicies(agentCtx context.Context) error {
 	if len(a.config.DiodeAgent.Policies) == 0 {
 		return errors.New("no policies specified")
 	}
-	a.backends = make(map[string]backend.Backend, len(a.config.DiodeAgent.Policies))
-	a.backendState = make(map[string]*backend.State)
+	a.backends = make(map[string]backendInfo, len(a.config.DiodeAgent.Policies))
 	for name, policy := range a.config.DiodeAgent.Policies {
 		be, err := factory.GetBackend(policy.Backend)
 		if err != nil {
 			return err
 		}
-		if a.backends[name] != nil {
+		_, ok := a.backends[name]
+		if ok {
 			return errors.New("policy '" + name + "' already exists")
 		}
 		if policy.Kind != Kind {
 			return errors.New("invalid policy kind")
 		}
-		if err = be.Configure(a.logger, name, a.pusher.GetChannel(), policy.Data); err != nil {
+		if err = be.Configure(a.logger, name, a.pusher.GetChannel(), policy.Data, policy.Config); err != nil {
 			return err
 		}
 		backendCtx := context.WithValue(agentCtx, "routine", name)
@@ -73,10 +78,13 @@ func (a *diodeAgent) startPolicies(agentCtx context.Context) error {
 		if err := be.Start(context.WithCancel(backendCtx)); err != nil {
 			return err
 		}
-		a.backends[name] = be
-		a.backendState[name] = &backend.State{
-			Status:        backend.Unknown,
-			LastRestartTS: time.Now(),
+		a.backends[name] = backendInfo{
+			be: be,
+			st: &backend.State{
+				Status:        backend.Unknown,
+				LastRestartTS: time.Now(),
+			},
+			cf: policy,
 		}
 	}
 	return nil
@@ -106,9 +114,9 @@ func (a *diodeAgent) Start(ctx context.Context, cancelFunc context.CancelFunc) e
 func (a *diodeAgent) Stop(ctx context.Context) {
 	a.logger.Info("routine call for stop agent", zap.Any("routine", ctx.Value("routine")))
 	for name, b := range a.backends {
-		if state, _, _ := b.GetRunningStatus(); state == backend.Running {
+		if state, _, _ := b.be.GetRunningStatus(); state == backend.Running {
 			a.logger.Debug("stopping backend", zap.String("backend", name))
-			if err := b.Stop(ctx); err != nil {
+			if err := b.be.Stop(ctx); err != nil {
 				a.logger.Error("error while stopping the backend", zap.String("backend", name))
 			}
 		}

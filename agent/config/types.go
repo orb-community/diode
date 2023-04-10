@@ -7,6 +7,7 @@ package config
 type Policy struct {
 	Kind    string                 `mapstructure:"kind"`
 	Backend string                 `mapstructure:"backend"`
+	Config  map[string]interface{} `mapstructure:"config"`
 	Data    map[string]interface{} `mapstructure:"data"`
 }
 
