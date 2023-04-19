@@ -20,7 +20,7 @@ import (
 )
 
 type ReturnValue struct {
-	message string
+	Message string `json:"message"`
 }
 
 func (a *diodeAgent) startServer(ctx context.Context) error {
@@ -68,7 +68,7 @@ func (a *diodeAgent) getPolicy(c *gin.Context) {
 
 func (a *diodeAgent) createPolicy(c *gin.Context) {
 	if t := c.Request.Header.Get("Content-type"); t != "application/x-yaml" {
-		c.JSON(http.StatusForbidden, &ReturnValue{message: "invalid Content-Type. Only 'application/x-yaml' is supported"})
+		c.JSON(http.StatusForbidden, ReturnValue{"invalid Content-Type. Only 'application/x-yaml' is supported"})
 		return
 	}
 	body, err := io.ReadAll(c.Request.Body)
