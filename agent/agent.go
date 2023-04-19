@@ -9,6 +9,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/orb-community/diode/agent/backend"
 	"github.com/orb-community/diode/agent/backend/factory"
 	"github.com/orb-community/diode/agent/config"
@@ -35,10 +36,14 @@ type backendInfo struct {
 
 type diodeAgent struct {
 	logger         *zap.Logger
+	ctx            context.Context
 	config         config.Config
-	backends       map[string]backendInfo
+	stat           config.Status
+	policies       map[string]backendInfo
 	cancelFunction context.CancelFunc
 	pusher         pusher.Pusher
+	router         *gin.Engine
+	addr           string
 }
 
 var _ Agent = (*diodeAgent)(nil)
@@ -49,21 +54,17 @@ func New(logger *zap.Logger, c config.Config) (Agent, error) {
 	if s, err = pusher.New(logger, c); err != nil {
 		return nil, err
 	}
-	return &diodeAgent{logger: logger, config: c, pusher: s}, nil
+	addr := c.DiodeAgent.DiodeConfig.Host + ":" + c.DiodeAgent.DiodeConfig.Port
+	return &diodeAgent{logger: logger, config: c, pusher: s, stat: config.Status{Version: c.Version}, addr: addr}, nil
 }
 
-func (a *diodeAgent) startPolicies(agentCtx context.Context) error {
-	a.logger.Info("registered backends", zap.Strings("values", factory.GetList()))
-	if len(a.config.DiodeAgent.Policies) == 0 {
-		return errors.New("no policies specified")
-	}
-	a.backends = make(map[string]backendInfo, len(a.config.DiodeAgent.Policies))
+func (a *diodeAgent) startConfigPolicies(agentCtx context.Context) error {
 	for name, policy := range a.config.DiodeAgent.Policies {
 		be, err := factory.GetBackend(policy.Backend)
 		if err != nil {
 			return err
 		}
-		_, ok := a.backends[name]
+		_, ok := a.policies[name]
 		if ok {
 			return errors.New("policy '" + name + "' already exists")
 		}
@@ -78,7 +79,7 @@ func (a *diodeAgent) startPolicies(agentCtx context.Context) error {
 		if err := be.Start(context.WithCancel(backendCtx)); err != nil {
 			return err
 		}
-		a.backends[name] = backendInfo{
+		a.policies[name] = backendInfo{
 			be: be,
 			st: &backend.State{
 				Status:        backend.Unknown,
@@ -91,29 +92,33 @@ func (a *diodeAgent) startPolicies(agentCtx context.Context) error {
 }
 
 func (a *diodeAgent) Start(ctx context.Context, cancelFunc context.CancelFunc) error {
-	startTime := time.Now()
+	a.stat.StartTime = time.Now()
 	defer func(t time.Time) {
 		a.logger.Debug("Startup of agent execution duration", zap.String("Start() execution duration", time.Since(t).String()))
-	}(startTime)
+	}(a.stat.StartTime)
 
-	agentCtx := context.WithValue(ctx, "routine", "agentRoutine")
+	a.ctx = context.WithValue(ctx, "routine", "agentRoutine")
 	a.cancelFunction = cancelFunc
 
-	pusherContext := context.WithValue(agentCtx, "routine", "pusherRoutine")
+	pusherContext := context.WithValue(a.ctx, "routine", "pusherRoutine")
 	if err := a.pusher.Start(context.WithCancel(pusherContext)); err != nil {
 		return err
 	}
-	a.logger.Info("agent started", zap.Any("routine", agentCtx.Value("routine")))
-	if err := a.startPolicies(ctx); err != nil {
+	a.logger.Info("registered backends", zap.Strings("values", factory.GetList()))
+	a.policies = make(map[string]backendInfo)
+	if err := a.startConfigPolicies(a.ctx); err != nil {
 		return err
 	}
-
+	if err := a.startServer(a.ctx); err != nil {
+		return err
+	}
+	a.logger.Info("agent started", zap.Any("routine", a.ctx.Value("routine")))
 	return nil
 }
 
 func (a *diodeAgent) Stop(ctx context.Context) {
 	a.logger.Info("routine call for stop agent", zap.Any("routine", ctx.Value("routine")))
-	for name, b := range a.backends {
+	for name, b := range a.policies {
 		if state, _, _ := b.be.GetRunningStatus(); state == backend.Running {
 			a.logger.Debug("stopping backend", zap.String("backend", name))
 			if err := b.be.Stop(ctx); err != nil {

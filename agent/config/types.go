@@ -4,6 +4,14 @@
 
 package config
 
+import "time"
+
+type Status struct {
+	StartTime time.Time     `json:"start_time"`
+	UpTime    time.Duration `json:"up_time"`
+	Version   string        `json:"version"`
+}
+
 type Policy struct {
 	Kind    string                 `mapstructure:"kind"`
 	Backend string                 `mapstructure:"backend"`
@@ -16,6 +24,8 @@ type DiodeConfig struct {
 	OutputType string `mapstructure:"output_type"`
 	OutputPath string `mapstructure:"output_path"`
 	OutputAuth string `mapstructure:"output_auth"`
+	Host       string `mapstructure:"host"`
+	Port       string `mapstructure:"port"`
 }
 
 type DiodeAgent struct {
@@ -25,6 +35,6 @@ type DiodeAgent struct {
 }
 
 type Config struct {
-	Version    float64    `mapstructure:"version"`
+	Version    string     `mapstructure:"version"`
 	DiodeAgent DiodeAgent `mapstructure:"diode"`
 }

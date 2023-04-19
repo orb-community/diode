@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/orb-community/diode/agent"
 	"github.com/orb-community/diode/agent/config"
+	"github.com/orb-community/diode/buildinfo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -25,7 +27,14 @@ var (
 	Debug      bool
 	OutputType string
 	OutputPath string
+	Host       string
+	Port       uint32
 )
+
+func Version(cmd *cobra.Command, args []string) {
+	fmt.Printf("diode-agent %s\n", buildinfo.GetVersion())
+	os.Exit(0)
+}
 
 func Run(cmd *cobra.Command, args []string) {
 
@@ -34,7 +43,10 @@ func Run(cmd *cobra.Command, args []string) {
 	// configuration
 	var config config.Config
 
+	config.Version = buildinfo.GetVersion()
 	config.DiodeAgent.DiodeConfig.Debug = Debug
+	config.DiodeAgent.DiodeConfig.Host = Host
+	config.DiodeAgent.DiodeConfig.Port = strconv.FormatUint(uint64(Port), 10)
 	config.DiodeAgent.DiodeConfig.OutputType = OutputType
 	config.DiodeAgent.DiodeConfig.OutputPath = OutputPath
 
@@ -166,11 +178,20 @@ func main() {
 		Run:   Run,
 	}
 
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "Show agent version",
+		Run:   Version,
+	}
+
 	runCmd.Flags().StringSliceVarP(&cfgFiles, "config", "c", []string{}, "Path to config files (may be specified multiple times)")
 	runCmd.PersistentFlags().BoolVarP(&Debug, "debug", "d", false, "Enable verbose (debug level) output")
+	runCmd.PersistentFlags().StringVarP(&Host, "host", "i", "localhost", "Define agent server host")
+	runCmd.PersistentFlags().Uint32VarP(&Port, "port", "p", 10911, "Define agent server port")
 	runCmd.PersistentFlags().StringVarP(&OutputType, "type", "t", "file", "Define agent output type")
 	runCmd.PersistentFlags().StringVarP(&OutputPath, "output_path", "o", "", "Define agent output path")
 
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(versionCmd)
 	rootCmd.Execute()
 }
