@@ -43,6 +43,7 @@ type diodeAgent struct {
 	cancelFunction context.CancelFunc
 	pusher         pusher.Pusher
 	router         *gin.Engine
+	addr           string
 }
 
 var _ Agent = (*diodeAgent)(nil)
@@ -53,7 +54,8 @@ func New(logger *zap.Logger, c config.Config) (Agent, error) {
 	if s, err = pusher.New(logger, c); err != nil {
 		return nil, err
 	}
-	return &diodeAgent{logger: logger, config: c, pusher: s, stat: config.Status{Version: c.Version}}, nil
+	addr := c.DiodeAgent.DiodeConfig.Host + ":" + c.DiodeAgent.DiodeConfig.Port
+	return &diodeAgent{logger: logger, config: c, pusher: s, stat: config.Status{Version: c.Version}, addr: addr}, nil
 }
 
 func (a *diodeAgent) startConfigPolicies(agentCtx context.Context) error {

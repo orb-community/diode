@@ -6,7 +6,6 @@ package agent
 
 import (
 	"context"
-	"errors"
 	"io"
 	"net/http"
 	"time"
@@ -36,7 +35,7 @@ func (a *diodeAgent) startServer(ctx context.Context) error {
 	a.router.DELETE("/api/v1/policies/:policy", a.deletePolicy)
 
 	go func() {
-		if err := a.router.Run("localhost:10910"); err != nil {
+		if err := a.router.Run(a.addr); err != nil {
 			a.Stop(ctx)
 		}
 	}()
@@ -82,7 +81,7 @@ func (a *diodeAgent) createPolicy(c *gin.Context) {
 		return
 	}
 	if len(payload) > 1 {
-		c.Error(errors.New("only single policy allowed per request"))
+		c.JSON(http.StatusForbidden, ReturnValue{"only single policy allowed per request"})
 		return
 	}
 	var policy string
@@ -90,11 +89,11 @@ func (a *diodeAgent) createPolicy(c *gin.Context) {
 	for policy, data = range payload {
 		_, ok := a.policies[policy]
 		if ok {
-			c.JSON(http.StatusForbidden, "policy already exists")
+			c.JSON(http.StatusForbidden, ReturnValue{"policy already exists"})
 			return
 		}
 		if len(data.Data) == 0 {
-			c.JSON(http.StatusForbidden, "data field is required")
+			c.JSON(http.StatusForbidden, ReturnValue{"data field is required"})
 			return
 		}
 	}

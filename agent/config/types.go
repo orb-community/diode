@@ -24,6 +24,8 @@ type DiodeConfig struct {
 	OutputType string `mapstructure:"output_type"`
 	OutputPath string `mapstructure:"output_path"`
 	OutputAuth string `mapstructure:"output_auth"`
+	Host       string `mapstructure:"host"`
+	Port       string `mapstructure:"port"`
 }
 
 type DiodeAgent struct {
