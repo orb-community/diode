@@ -23,6 +23,7 @@ type ReturnValue struct {
 }
 
 func (a *diodeAgent) startServer(ctx context.Context) error {
+	gin.SetMode(gin.ReleaseMode)
 	a.router = gin.New()
 
 	a.router.Use(ginzap.Ginzap(a.logger, time.RFC3339, true))
@@ -35,6 +36,7 @@ func (a *diodeAgent) startServer(ctx context.Context) error {
 	a.router.DELETE("/api/v1/policies/:policy", a.deletePolicy)
 
 	go func() {
+		a.logger.Info("starting diode-agent server at: " + a.addr)
 		if err := a.router.Run(a.addr); err != nil {
 			a.Stop(ctx)
 		}
