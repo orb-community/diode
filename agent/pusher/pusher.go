@@ -82,37 +82,13 @@ func (s *pusherImpl) Stop(ctx context.Context) {
 	defer s.cancelFunc()
 }
 
-type tempNetboxStruct struct {
-	ObjType string      `json:"object_type"`
-	Engine  string      `json:"engine"`
-	Data    interface{} `json:"data"`
-}
-
-func (s *pusherImpl) temporaryMatchNetbox(data []byte) []byte {
-	var jsonData map[string]map[string]interface{}
-	var returnData tempNetboxStruct
-	returnData.ObjType = "dcim.device"
-	json.Unmarshal(data, &jsonData)
-	for _, policy := range jsonData {
-		for k, v := range policy {
-			if k == "backend" {
-				returnData.Engine = v.(string)
-			} else if k == "device" {
-				returnData.Data = v.([]interface{})[0]
-			}
-		}
-	}
-	b, _ := json.Marshal(returnData)
-	return b
-}
-
 func (s *pusherImpl) scrapeToHttp() error {
 	go func() {
 		for {
 			select {
 			case data := <-s.channel:
 				client := &http.Client{}
-				req, err := http.NewRequest("POST", s.outputPath, bytes.NewBuffer(s.temporaryMatchNetbox(data)))
+				req, err := http.NewRequest("POST", s.outputPath, bytes.NewBuffer(data))
 				if err != nil {
 					s.logger.Error("pusher - fail to create http request", zap.Error(err))
 					continue
@@ -196,14 +172,22 @@ func (s *pusherImpl) scrapeToOtlp() error {
 		for {
 			select {
 			case data := <-s.channel:
+				var pData map[string]interface{}
+				if err := json.Unmarshal(data, &pData); err != nil {
+					s.logger.Error("fail to get policy name", zap.Error(err))
+					break
+				}
 				logs := plog.NewLogs()
 				res := logs.ResourceLogs().AppendEmpty()
 				scope := res.ScopeLogs().AppendEmpty()
+				for k := range pData {
+					scope.Scope().SetName(k)
+				}
 				record := scope.LogRecords().AppendEmpty()
 				record.SetSeverityNumber(plog.SeverityNumberTrace)
 				err = record.Body().FromRaw(data)
 				if err != nil {
-					s.logger.Error("pusher - fail to add log body", zap.Error(err))
+					s.logger.Error("fail to add log body", zap.Error(err))
 					break
 				}
 				lexporter.ConsumeLogs(s.ctx, logs)
