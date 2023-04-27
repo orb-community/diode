@@ -52,7 +52,7 @@ func Run(cmd *cobra.Command, args []string) {
 
 	err := viper.Unmarshal(&config)
 	if err != nil {
-		cobra.CheckErr(fmt.Errorf("agent start up error (config): %w", err))
+		cobra.CheckErr(fmt.Errorf("agent version %s start up error (config): %w", config.Version, err))
 		os.Exit(1)
 	}
 
@@ -77,6 +77,7 @@ func Run(cmd *cobra.Command, args []string) {
 	}(logger)
 
 	// new agent
+	logger.Info("starting diode-agent", zap.String("version", config.Version))
 	a, err := agent.New(logger, config)
 	if err != nil {
 		logger.Error("agent start up error", zap.Error(err))
