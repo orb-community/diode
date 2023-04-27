@@ -26,6 +26,7 @@ var Tables = [...]string{"device", "interfaces", "inventory", "vlan"}
 const PollerTable = "sqPoller"
 
 type suzieqBackend struct {
+	stopped       bool
 	logger        *zap.Logger
 	policyName    string
 	returnPrefix  string
@@ -42,7 +43,7 @@ type suzieqBackend struct {
 var _ backend.Backend = (*suzieqBackend)(nil)
 
 func New() backend.Backend {
-	return &suzieqBackend{}
+	return &suzieqBackend{stopped: false}
 }
 
 func (s *suzieqBackend) getProcRunningStatus() (backend.RunningStatus, string, error) {
@@ -124,7 +125,7 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 		"update",
 	}
 
-	s.logger.Info("suzieq startup", zap.Strings("arguments", sOptions))
+	s.logger.Info("suzieq startup", zap.Strings("arguments", sOptions), zap.String("policy", s.policyName))
 
 	s.proc = cmd.NewCmdOptions(cmd.Options{
 		Buffered:       false,
@@ -148,14 +149,14 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 					_, output, _ := strings.Cut(line, "{")
 					s.proccessDiscovery(output)
 				} else {
-					s.logger.Info("suzieq stdout", zap.String("log", line))
+					s.logger.Info("suzieq stdout", zap.String("log", line), zap.String("policy", s.policyName))
 				}
 			case line, open := <-s.proc.Stderr:
 				if !open {
 					s.proc.Stderr = nil
 					continue
 				}
-				s.logger.Info("suzieq stderr", zap.String("log", line))
+				s.logger.Info("suzieq stderr", zap.String("log", line), zap.String("policy", s.policyName))
 			case <-s.proc.Done():
 				s.Stop(ctx)
 				return
@@ -169,19 +170,19 @@ func (s *suzieqBackend) Start(ctx context.Context, cancelFunc context.CancelFunc
 	status := s.proc.Status()
 
 	if status.Error != nil {
-		s.logger.Error("suzieq startup error", zap.Error(status.Error))
+		s.logger.Error("suzieq startup error", zap.Error(status.Error), zap.String("policy", s.policyName))
 		return status.Error
 	}
 
 	if status.Complete {
 		err := s.proc.Stop()
 		if err != nil {
-			s.logger.Error("proc.Stop error", zap.Error(err))
+			s.logger.Error("proc.Stop error", zap.Error(err), zap.String("policy", s.policyName))
 		}
 		return errors.New("suzieq startup error, check log")
 	}
 
-	s.logger.Info("suzieq process started", zap.Int("pid", status.PID))
+	s.logger.Info("suzieq process started", zap.Int("pid", status.PID), zap.String("policy", s.policyName))
 
 	return nil
 }
@@ -219,7 +220,7 @@ func (s *suzieqBackend) proccessDiscovery(data string) {
 				}
 			}
 			if service != "" && status != "0" {
-				s.logger.Error("suzieq poller for service '" + service + "' failed with status: " + status)
+				s.logger.Error("suzieq poller for service '"+service+"' failed with status: "+status, zap.String("policy", s.policyName))
 			}
 		}
 	}
@@ -227,6 +228,10 @@ func (s *suzieqBackend) proccessDiscovery(data string) {
 
 func (s *suzieqBackend) Stop(ctx context.Context) error {
 	s.logger.Info("routine call to stop suzieq", zap.Any("routine", ctx.Value("routine")))
+	if s.stopped {
+		s.logger.Info("suzieq instance was already stopped", zap.String("policy", s.policyName))
+		return nil
+	}
 	defer s.cancelFunc()
 	err := s.proc.Stop()
 	finalStatus := <-s.statusChan
@@ -235,6 +240,7 @@ func (s *suzieqBackend) Stop(ctx context.Context) error {
 		return err
 	}
 	s.logger.Info("suzieq process stopped", zap.Int("pid", finalStatus.PID), zap.Int("exit_code", finalStatus.Exit))
+	s.stopped = true
 	return nil
 }
 

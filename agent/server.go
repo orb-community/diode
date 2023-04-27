@@ -91,7 +91,7 @@ func (a *diodeAgent) createPolicy(c *gin.Context) {
 	for policy, data = range payload {
 		_, ok := a.policies[policy]
 		if ok {
-			c.JSON(http.StatusForbidden, ReturnValue{"policy already exists"})
+			c.JSON(http.StatusConflict, ReturnValue{"policy already exists"})
 			return
 		}
 		if len(data.Data) == 0 {
@@ -128,7 +128,7 @@ func (a *diodeAgent) createPolicy(c *gin.Context) {
 		},
 		cf: data,
 	}
-	c.YAML(http.StatusOK, data)
+	c.YAML(http.StatusCreated, data)
 }
 
 func (a *diodeAgent) deletePolicy(c *gin.Context) {
