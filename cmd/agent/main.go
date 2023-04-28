@@ -42,19 +42,13 @@ func Run(cmd *cobra.Command, args []string) {
 
 	// configuration
 	var config config.Config
-
-	config.Version = buildinfo.GetVersion()
-	config.DiodeAgent.DiodeConfig.Debug = Debug
-	config.DiodeAgent.DiodeConfig.Host = Host
-	config.DiodeAgent.DiodeConfig.Port = strconv.FormatUint(uint64(Port), 10)
-	config.DiodeAgent.DiodeConfig.OutputType = OutputType
-	config.DiodeAgent.DiodeConfig.OutputPath = OutputPath
-
 	err := viper.Unmarshal(&config)
 	if err != nil {
 		cobra.CheckErr(fmt.Errorf("agent version %s start up error (config): %w", config.Version, err))
 		os.Exit(1)
 	}
+
+	config.Version = buildinfo.GetVersion()
 
 	// logger
 	var logger *zap.Logger
@@ -128,11 +122,12 @@ func mergeOrError(path string) {
 	v.SetEnvKeyReplacer(replacer)
 
 	// note: viper seems to require a default (or a BindEnv) to be overridden by environment variables
-	v.SetDefault("diode.config.debug", false)
-	v.SetDefault("diode.config.output_type", "file")
-	v.SetDefault("diode.config.output_path", "")
-	v.SetDefault("diode.config.host", "")
-	v.SetDefault("diode.config.port", "")
+	v.SetDefault("diode.config.debug", Debug)
+	v.SetDefault("diode.config.output_type", OutputType)
+	v.SetDefault("diode.config.output_path", OutputPath)
+	v.SetDefault("diode.config.output_auth", "")
+	v.SetDefault("diode.config.host", Host)
+	v.SetDefault("diode.config.port", strconv.FormatUint(uint64(Port), 10))
 
 	if len(path) > 0 {
 		cobra.CheckErr(v.ReadInConfig())
