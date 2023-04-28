@@ -71,6 +71,18 @@ jobs:
         run: |
           docker push -a orbcommunity/diode-agent
           
+  build-orb-agent:
+    needs: [ package-agent ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Repository Dispatch
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.BOT_TOKEN }}
+        repository: orb-community/orb
+        event-type: build-agent
+        client-payload: '{"branch_name": "develop"}'
+          
   package-service:
     if: ${{ github.event_name != 'pull_request' }} 
     needs: [ pre-build ]
