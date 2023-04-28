@@ -131,23 +131,11 @@ func mergeOrError(path string) {
 	v.SetDefault("diode.config.debug", false)
 	v.SetDefault("diode.config.output_type", "file")
 	v.SetDefault("diode.config.output_path", "")
-	v.SetDefault("diode.config.output_auth", "")
+	v.SetDefault("diode.config.host", "")
+	v.SetDefault("diode.config.port", "")
 
 	if len(path) > 0 {
 		cobra.CheckErr(v.ReadInConfig())
-	}
-
-	var fZero float64
-
-	// check that version of config files are all matched up
-	if versionNumber1 := viper.GetFloat64("version"); versionNumber1 != fZero {
-		versionNumber2 := v.GetFloat64("version")
-		if versionNumber2 == fZero {
-			cobra.CheckErr("Failed to parse config version in: " + path)
-		}
-		if versionNumber2 != versionNumber1 {
-			cobra.CheckErr("Config file version mismatch in: " + path)
-		}
 	}
 
 	cobra.CheckErr(viper.MergeConfigMap(v.AllSettings()))
@@ -155,14 +143,9 @@ func mergeOrError(path string) {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-
 	mergeOrError("")
-	if len(cfgFiles) == 0 {
-		cobra.CheckErr("Config files were not provided")
-	} else {
-		for _, conf := range cfgFiles {
-			mergeOrError(conf)
-		}
+	for _, conf := range cfgFiles {
+		mergeOrError(conf)
 	}
 }
 
@@ -189,7 +172,7 @@ func main() {
 	runCmd.PersistentFlags().BoolVarP(&Debug, "debug", "d", false, "Enable verbose (debug level) output")
 	runCmd.PersistentFlags().StringVarP(&Host, "host", "i", "localhost", "Define agent server host")
 	runCmd.PersistentFlags().Uint32VarP(&Port, "port", "p", 10911, "Define agent server port")
-	runCmd.PersistentFlags().StringVarP(&OutputType, "type", "t", "file", "Define agent output type")
+	runCmd.PersistentFlags().StringVarP(&OutputType, "output_type", "t", "file", "Define agent output type")
 	runCmd.PersistentFlags().StringVarP(&OutputPath, "output_path", "o", "", "Define agent output path")
 
 	rootCmd.AddCommand(runCmd)
