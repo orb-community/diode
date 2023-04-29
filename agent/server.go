@@ -128,7 +128,7 @@ func (a *diodeAgent) createPolicy(c *gin.Context) {
 		},
 		cf: data,
 	}
-	c.YAML(http.StatusCreated, data)
+	c.JSON(http.StatusCreated, data)
 }
 
 func (a *diodeAgent) deletePolicy(c *gin.Context) {
