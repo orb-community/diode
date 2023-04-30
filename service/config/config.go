@@ -28,6 +28,11 @@ type OtlpReceiverConfig struct {
 	Protocol string `mapstructure:"protocol"`
 }
 
+type KafkaReceiverConfig struct {
+	Endpoint string `mapstructure:"endpoint"`
+	Protocol string `mapstructure:"protocol"`
+}
+
 type Config struct {
 	Base         BaseSvcConfig
 	NetboxPusher NetboxPusherConfig
@@ -88,6 +93,20 @@ func loadOtlpReceiverConfig(prefix string) OtlpReceiverConfig {
 	cfg.AllowEmptyEnv(true)
 	cfg.AutomaticEnv()
 	var otlpC OtlpReceiverConfig
+	cfg.Unmarshal(&otlpC)
+	return otlpC
+}
+
+func loadKafkaReceiverConfig(prefix string) KafkaReceiverConfig {
+	cfg := viper.New()
+	cfg.SetEnvPrefix(fmt.Sprintf("%s_kafka", prefix))
+
+	cfg.SetDefault("endpoint", otlpEndpoint)
+	cfg.SetDefault("protocol", otlpProtocol)
+
+	cfg.AllowEmptyEnv(true)
+	cfg.AutomaticEnv()
+	var otlpC KafkaReceiverConfig
 	cfg.Unmarshal(&otlpC)
 	return otlpC
 }
