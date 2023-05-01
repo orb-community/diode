@@ -6,14 +6,10 @@ package otlp
 
 import (
 	"context"
+
 	"github.com/orb-community/diode/service/config"
-	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/collector/receiver"
-	"go.opentelemetry.io/collector/receiver/otlpreceiver"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -22,53 +18,21 @@ type Otlp interface {
 	Stop() error
 }
 
-type DiodeOtlp struct {
-	ctx      context.Context
-	logger   *zap.Logger
-	config   *config.Config
-	consumer consumer.Logs
-	receiver receiver.Logs
-}
-
 type DiodeLogConsumer struct {
 	channel      chan []byte
 	capabilities consumer.Capabilities
 }
 
-var _ Otlp = (*DiodeOtlp)(nil)
-
 func New(ctx context.Context, logger *zap.Logger, config *config.Config, channel chan []byte) Otlp {
-	return &DiodeOtlp{ctx: ctx, logger: logger, config: config, consumer: newLogConsumer(channel)}
-}
-
-func (d *DiodeOtlp) Start() error {
-	factory := otlpreceiver.NewFactory()
-	cfg := factory.CreateDefaultConfig().(*otlpreceiver.Config)
-	cfg.HTTP = nil
-	cfg.GRPC.NetAddr.Endpoint = d.config.OtlpReceiver.Endpoint
-	cfg.GRPC.NetAddr.Transport = d.config.OtlpReceiver.Protocol
-	set := receiver.CreateSettings{
-		TelemetrySettings: component.TelemetrySettings{
-			Logger:         d.logger,
-			TracerProvider: trace.NewNoopTracerProvider(),
-			MeterProvider:  global.MeterProvider(),
-		},
-		BuildInfo: component.NewDefaultBuildInfo(),
+	switch tOtlp := config.Base.OtlpReceiverType; tOtlp {
+	case "kafka":
+		return &DiodeKafkaRecv{ctx: ctx, logger: logger, config: config, consumer: newLogConsumer(channel)}
+	case "otlp":
+	default:
+		break
 	}
-	var err error
-	d.receiver, err = factory.CreateLogsReceiver(d.ctx, set, cfg, d.consumer)
-	if err != nil {
-		return err
-	}
-	err = d.receiver.Start(d.ctx, nil)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *DiodeOtlp) Stop() error {
-	return nil
+	//default
+	return &DiodeOtlpRecv{ctx: ctx, logger: logger, config: config, consumer: newLogConsumer(channel)}
 }
 
 func newLogConsumer(channel chan []byte) consumer.Logs {

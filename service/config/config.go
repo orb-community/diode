@@ -11,10 +11,11 @@ import (
 )
 
 type BaseSvcConfig struct {
-	LogLevel       string `mapstructure:"log_level"`
-	HttpPort       string `mapstructure:"http_port"`
-	HttpServerCert string `mapstructure:"server_cert"`
-	HttpServerKey  string `mapstructure:"server_key"`
+	LogLevel         string `mapstructure:"log_level"`
+	HttpPort         string `mapstructure:"http_port"`
+	HttpServerCert   string `mapstructure:"server_cert"`
+	HttpServerKey    string `mapstructure:"server_key"`
+	OtlpReceiverType string `mapstructure:"otlp_receiver_type"`
 }
 
 type NetboxPusherConfig struct {
@@ -28,15 +29,24 @@ type OtlpReceiverConfig struct {
 	Protocol string `mapstructure:"protocol"`
 }
 
+type KafkaReceiverConfig struct {
+	Brokers         []string `mapstructure:"brokers"`
+	Topic           string   `mapstructure:"topic"`
+	ProtocolVersion string   `mapstructure:"protocol_version"`
+}
+
 type Config struct {
-	Base         BaseSvcConfig
-	NetboxPusher NetboxPusherConfig
-	OtlpReceiver OtlpReceiverConfig
+	Base          BaseSvcConfig
+	NetboxPusher  NetboxPusherConfig
+	OtlpReceiver  OtlpReceiverConfig
+	KafkaReceiver KafkaReceiverConfig
 }
 
 const (
-	otlpEndpoint = "0.0.0.0:4317"
-	otlpProtocol = "tcp"
+	otlpEndpoint      = "0.0.0.0:4317"
+	otlpProtocol      = "tcp"
+	receiverType      = "otlp"
+	kafkaProtoVersion = "2.0.0"
 )
 
 func LoadConfig(prefix string) Config {
@@ -44,6 +54,7 @@ func LoadConfig(prefix string) Config {
 	config.Base = loadBaseServiceConfig(prefix)
 	config.NetboxPusher = loadNetboxPusherConfig(prefix)
 	config.OtlpReceiver = loadOtlpReceiverConfig(prefix)
+	config.KafkaReceiver = loadKafkaReceiverConfig(prefix)
 	return config
 }
 
@@ -55,6 +66,7 @@ func loadBaseServiceConfig(prefix string) BaseSvcConfig {
 	cfg.SetDefault("http_port", "")
 	cfg.SetDefault("server_cert", "")
 	cfg.SetDefault("server_key", "")
+	cfg.SetDefault("otlp_receiver_type", receiverType)
 
 	cfg.AllowEmptyEnv(true)
 	cfg.AutomaticEnv()
@@ -90,4 +102,19 @@ func loadOtlpReceiverConfig(prefix string) OtlpReceiverConfig {
 	var otlpC OtlpReceiverConfig
 	cfg.Unmarshal(&otlpC)
 	return otlpC
+}
+
+func loadKafkaReceiverConfig(prefix string) KafkaReceiverConfig {
+	cfg := viper.New()
+	cfg.SetEnvPrefix(fmt.Sprintf("%s_otlp_kafka", prefix))
+
+	cfg.SetDefault("topic", "otlp_logs")
+	cfg.SetDefault("brokers", make([]string, 0))
+	cfg.SetDefault("protocol_version", kafkaProtoVersion)
+
+	cfg.AllowEmptyEnv(true)
+	cfg.AutomaticEnv()
+	var kafkaC KafkaReceiverConfig
+	cfg.Unmarshal(&kafkaC)
+	return kafkaC
 }
