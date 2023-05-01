@@ -28,10 +28,12 @@ func New(ctx context.Context, logger *zap.Logger, config *config.Config, channel
 	case "kafka":
 		return &DiodeKafkaRecv{ctx: ctx, logger: logger, config: config, consumer: newLogConsumer(channel)}
 	case "otlp":
+		return &DiodeOtlpRecv{ctx: ctx, logger: logger, config: config, consumer: newLogConsumer(channel)}
 	default:
 		break
 	}
-	//default
+	logger.Warn("Not supported OTLP receiver type. Creating Default OTLP Receiver",
+		zap.String("otlp_receiver_type", config.Base.OtlpReceiverType))
 	return &DiodeOtlpRecv{ctx: ctx, logger: logger, config: config, consumer: newLogConsumer(channel)}
 }
 
