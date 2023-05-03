@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "diode-service.fullname" . }}
+  labels:
+    {{- include "diode-service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "diode-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "diode-service.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "diode-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+    spec:
+      containers:
+        - env:
+            - name: DIODE_SERVICE_OTLP_RECEIVER_TYPE
+              value: {{ .Values.service.OtlpReceiverType }}
+            - name: DIODE_SERVICE_OTLP_KAFKA_BROKERS
+              value: {{ .Values.service.OtelKafkaBrokers }}
+            - name: DIODE_SERVICE_OTLP_KAFKA_TOPIC
+              value: {{ .Values.service.OtlpKafkaTopic }}
+            - name: DIODE_SERVICE_NETBOX_ENDPOINT
+              value: {{ .Values.service.NetboxEndpoint }}
+            - name: DIODE_SERVICE_NETBOX_TOKEN
+              value: {{ .Values.service.NetboxToken }}
+          name: {{ .Release.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
