@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ develop ]
   push:
-    branches: [ develop, repository-dispatch ]
+    branches: [ develop ]
 
 jobs:
 
