@@ -1,0 +1,7 @@
+behave==1.2.6
+behavex==2.0.1
+deepdiff==6.3.0
+docker==6.1.0
+pyhamcrest==2.0.4
+PyYAML==6.0
+requests==2.30.0
