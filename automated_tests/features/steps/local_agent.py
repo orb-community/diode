@@ -5,6 +5,7 @@ from diode_config_file import Diode, default_path_config_file, AGENT_FILE_NAME_P
 from hamcrest import *
 from utils import return_port_by_availability, threading_wait_until
 from config import TestConfig
+import requests
 
 configs = TestConfig.configs()
 
@@ -15,12 +16,18 @@ def create_diode_config_file(context, port):
 
     if port == "default":
         agent, context.agent_file_name, file_path = Diode.create_config_file()
-        context.port_to_use = 10911
+        context.port = 10911
     else:
         availability = {"available": True, "unavailable": False}
         context.port_availability = availability[port]
-        context.port_to_use = return_port_by_availability(context.port_availability)
-        agent, context.agent_file_name, file_path = Diode.create_config_file(config={"port": context.port_to_use})
+        context.port = return_port_by_availability(context.port_availability, list(context.containers_id_port.keys()))
+        agent, context.agent_file_name, file_path = Diode.create_config_file(config={"port": context.port})
+
+
+@given("that a diode agent is already running")
+def create_and_run_diode_agent(context):
+    create_diode_config_file(context, 'available')
+    run_agent_using_config_file(context)
 
 
 @when('the diode agent is run using existing configuration file')
@@ -32,7 +39,7 @@ def run_agent_using_config_file(context):
     command = f"run -c {default_path_config_file}{context.agent_file_name}.yaml"
     context.container_id = run_agent_container(agent_image, context.agent_file_name, command=command, volumes=volume)
     assert_that(context.container_id, is_not(None), "Failed to run agent container. Container id is None.")
-    context.containers_id_port.update({context.container_id: context.port_to_use})
+    context.containers_id_port.update({context.container_id: context.port})
 
 
 @then('the diode agent container is {status}')
@@ -93,6 +100,26 @@ def run_agent_container(container_image, container_name, env_vars=None, detach=T
                                       command=command, network_mode=network_mode, volumes=volumes)
     threading.Event().wait(time_to_wait)
     return container.id
+
+
+def get_status(port, api_url="http://localhost", expected_status_code=200):
+    """
+
+    Get diode agent status
+
+    :param (int) port: port where agent is running
+    :param (str) api_url: status api path
+    :param (int) expected_status_code: code to be returned on response
+
+    """
+
+    response = requests.get(f"{api_url}:{port}/api/v1/status")
+    try:
+        response_json = response.json()
+    except ValueError:
+        response_json = response.text
+
+    return response_json, expected_status_code
 
 
 def stop_container(container_id):
