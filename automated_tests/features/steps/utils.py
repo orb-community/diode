@@ -5,6 +5,9 @@ import threading
 import string
 from datetime import datetime
 import os
+import yaml
+from yaml.loader import SafeLoader
+import json
 
 
 def return_port_by_availability(available=True, unavailable_ports=list(), time_to_wait=5):
@@ -97,3 +100,25 @@ def find_files(prefix, suffix, path):
             if name.startswith(prefix) and name.endswith(suffix):
                 result.append(os.path.join(root, name))
     return result
+
+
+def yaml_to_json(yaml_object):
+    """
+    Transform a yaml object in json object
+    :param yaml_object: object to be transformed
+    :return: json object
+    """
+    dict_object = yaml.load(yaml_object, Loader=SafeLoader)
+    json_object = json.dumps(dict_object)
+    return json_object
+
+
+def yaml_to_dict(yaml_object):
+    """
+    Transform a yaml object in dict object
+    :param yaml_object: object to be transformed
+    :return: dict object
+    """
+    json_object = yaml_to_json(yaml_object)
+    dict_object = json.loads(json_object)
+    return dict_object

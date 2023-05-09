@@ -3,6 +3,7 @@ from behave.model_core import Status
 
 def before_scenario(context, scenario):
     context.containers_id_port = dict()
+    context.policies = dict()
 
 
 def after_scenario(context, scenario):
