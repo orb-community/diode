@@ -24,6 +24,40 @@ func NewSqliteStorage(logger *zap.Logger) (Service, error) {
 	return sqliteStorage{db: db, logger: logger}, nil
 }
 
+func (s sqliteStorage) GetInterfacesByName(name string) ([]DbInterface, error) {
+	selectResult, err := s.db.Query(`
+		SELECT id, policy, config, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, ip_addresses, json_data
+		FROM interfaces
+		WHERE name = $1
+	`, name)
+	if err != nil {
+		return nil, errors.Join(errors.New("storage fetch interface fail on new function"), err)
+	}
+	var interfaces []DbInterface
+	var configAsString string
+	var ipsAsString string
+	for selectResult.Next() {
+		var iface DbInterface
+		err := selectResult.Scan(&iface.Id, &iface.Policy, &configAsString, &iface.Namespace, &iface.Hostname, &iface.Name, &iface.AdminState,
+			&iface.Mtu, &iface.Speed, &iface.MacAddress, &iface.IfType, &iface.NetboxRefId, &ipsAsString, &iface.Blob)
+		if err != nil {
+			return nil, errors.Join(errors.New("storage ifce struct fail"), err)
+		}
+		if len(configAsString) > 0 {
+			err = json.Unmarshal([]byte(configAsString), &iface.Config)
+			if err != nil {
+				return nil, errors.Join(errors.New("storage config parse fail"), err)
+			}
+		}
+		err = json.Unmarshal([]byte(ipsAsString), &iface.IpAddresses)
+		if err != nil {
+			return nil, errors.Join(errors.New("storage ip_address parse fail"), err)
+		}
+		interfaces = append(interfaces, iface)
+	}
+	return interfaces, nil
+}
+
 func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInterface, error) {
 	selectResult, err := s.db.Query(`
 		SELECT id, policy, config, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, ip_addresses, json_data
@@ -57,6 +91,34 @@ func (s sqliteStorage) GetInterfaceByPolicyAndNamespaceAndHostname(policy, names
 	}
 
 	return interfaces, nil
+}
+
+func (s sqliteStorage) GetDevicesByHostname(hostname string) ([]DbDevice, error) {
+	selectResult, err := s.db.Query(`
+	SELECT id, policy, config, namespace, hostname, serial_number, model, state, vendor, os, netbox_id, json_data
+	FROM devices
+	WHERE hostname = $1`, hostname)
+	if err != nil {
+		return nil, errors.Join(errors.New("storage fetch device fail, not able to return devices"), err)
+	}
+	var devices []DbDevice
+	var configAsString string
+	for selectResult.Next() {
+		var device DbDevice
+		err := selectResult.Scan(&device.Id, &device.Policy, &configAsString, &device.Namespace, &device.Hostname, &device.SerialNumber,
+			&device.Model, &device.State, &device.Vendor, &device.Os, &device.NetboxRefId, &device.Blob)
+		if err != nil {
+			return nil, errors.Join(errors.New("storage create device struct fail on NEW REPO FUNC"), err)
+		}
+		if len(configAsString) > 0 {
+			err = json.Unmarshal([]byte(configAsString), &device.Config)
+			if err != nil {
+				return nil, errors.Join(errors.New("storage config parse fail NEW FUNC"), err)
+			}
+		}
+		devices = append(devices, device)
+	}
+	return devices, nil
 }
 
 func (s sqliteStorage) GetDevicesByPolicyAndNamespace(policy, namespace string) ([]DbDevice, error) {

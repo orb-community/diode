@@ -80,11 +80,11 @@ func (ds *DiodeService) Start() error {
 					ds.logger.Error("fail to unmarshal json", zap.Error(err))
 					break
 				}
+
 				for policy, logEntryData := range jsonData {
 					ret, err := ds.storageService.Save(policy, logEntryData.(map[string]interface{}))
 					if err != nil {
 						ds.logger.Error("error during storing", zap.String("policy", policy), zap.Error(err))
-						continue
 					}
 					if err = ds.translate.Translate(ret); err != nil {
 						ds.logger.Error("error during traslating data", zap.String("policy", policy), zap.Error(err))

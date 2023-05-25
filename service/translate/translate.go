@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/orb-community/diode/service/config"
 	"github.com/orb-community/diode/service/nb_pusher"
@@ -29,54 +30,6 @@ type SuzieQTranslate struct {
 	pusher nb_pusher.Pusher
 }
 
-type deviceJsonReturn struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Serial string `json:"serial"`
-	Dtype  struct {
-		Model string `json:"model"`
-		Mfr   struct {
-			Name string `json:"name"`
-		} `json:"manufacturers"`
-	} `json:"device_type"`
-	Platform *struct {
-		Name string `json:"name"`
-		Mfr  struct {
-			Name string `json:"name"`
-		} `json:"manufacturers"`
-	} `json:"platform,omitempty"`
-	Site *struct {
-		Name string `json:"name"`
-	} `json:"site,omitempty"`
-}
-
-type ifJsonReturn struct {
-	DeviceID   int64  `json:"device_id"`
-	Name       string `json:"name"`
-	Type       string `json:"type"`
-	Speed      int64  `json:"speed"`
-	Mtu        int64  `json:"mtu"`
-	MacAddress string `json:"mac_address"`
-	State      string `json:"state"`
-}
-
-type ifIpJsonReturn struct {
-	IfID int64  `json:"assigned_object_id"`
-	Ip   string `json:"address"`
-}
-
-type invJsonReturn struct {
-	DeviceID int64  `json:"device_id"`
-	Name     string `json:"name"`
-	AssetTag string `json:"asset_tag"`
-	Mfr      struct {
-		Name string `json:"name"`
-	} `json:"manufacturers"`
-	PartId string `json:"part_id"`
-	Descr  string `json:"description"`
-	Serial string `json:"serial"`
-}
-
 func New(ctx context.Context, logger *zap.Logger, config *config.Config, db storage.Service, pusher nb_pusher.Pusher) Translator {
 	return &SuzieQTranslate{ctx: ctx, logger: logger, config: config, db: db, pusher: pusher}
 }
@@ -85,14 +38,53 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 	if devices, ok := data.([]storage.DbDevice); ok {
 		var errs error
 		for _, device := range devices {
+
 			if len(device.Id) == 0 {
 				continue
 			}
+
 			j, err := st.translateDevice(&device)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
+
+			var deviceJson DeviceJsonReturn
+			err = json.Unmarshal(j, &deviceJson)
+			if err != nil {
+				errs = errors.Join(err)
+				continue
+			}
+
+			DbDevices, err := st.db.GetDevicesByHostname(device.Hostname)
+			if err != nil {
+				err = errors.New("error returning devices from db")
+				errs = errors.Join(errs, err)
+				continue
+			}
+			for _, dbDevice := range DbDevices {
+				dbByte, err := st.translateDevice(&dbDevice)
+				if err != nil {
+					err = errors.New("error translating device")
+					errs = errors.Join(errs, err)
+					continue
+				}
+				var dbJson DeviceJsonReturn
+				err = json.Unmarshal(dbByte, &dbJson)
+				if err != nil {
+					err = errors.New("error unmarshaling data")
+					errs = errors.Join(errs, err)
+					continue
+				}
+				ret, err := deviceJson.CheckDeviceEqual(deviceJson, dbJson)
+				if err != nil {
+					err = errors.New("error during device check")
+					errs = errors.Join(errs, err)
+					continue
+				}
+				fmt.Println(ret)
+			}
+
 			id, err := st.pusher.CreateDevice(j)
 			if err != nil {
 				errs = errors.Join(errs, err)
@@ -114,11 +106,13 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 		}
 		return errs
 	} else if ifs, ok := data.([]storage.DbInterface); ok {
+
 		var errs error
 		for _, ifce := range ifs {
 			if len(ifce.Id) == 0 {
 				continue
 			}
+
 			device, err := st.db.GetDeviceByPolicyAndNamespaceAndHostname(ifce.Policy, ifce.Namespace, ifce.Hostname)
 			if err != nil {
 				errs = errors.Join(errs, err)
@@ -128,11 +122,52 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
+
 			j, err := st.translateInterface(&ifce, device.NetboxRefId)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
+
+			DbInterfaces, err := st.db.GetInterfacesByName(ifce.Name)
+			if err != nil {
+				fmt.Println("Erro tentando pegar as interfaces do banco", err)
+			}
+
+			for _, ifcDb := range DbInterfaces {
+				ifceSq := ifce
+				ifcSqTranslated, err := st.translateInterface(&ifceSq, device.NetboxRefId)
+				if err != nil {
+					st.logger.Error("error translating interface", zap.Any("error: ", err))
+					continue
+				}
+				var ifceSqJson IfJsonReturn
+				err = json.Unmarshal(ifcSqTranslated, &ifceSqJson)
+				if err != nil {
+					st.logger.Error("error unmarshaling interface", zap.Any("error: ", err))
+					continue
+				}
+
+				ifcDbTranslated, err := st.translateInterface(&ifcDb, device.NetboxRefId)
+				if err != nil {
+					st.logger.Error("error translating interface", zap.Any("error: ", err))
+					continue
+				}
+				var ifcDbJson IfJsonReturn
+				err = json.Unmarshal(ifcDbTranslated, &ifcDbJson)
+				if err != nil {
+					st.logger.Error("error unmarshaling interface", zap.Any("error: ", err))
+					continue
+				}
+
+				ret, err := ifcDbJson.CheckInterfaceEqual(ifcDbJson, ifceSqJson)
+				if err != nil {
+					st.logger.Error("error checking interface equality", zap.Any("error: ", err))
+					continue
+				}
+				fmt.Println(ret)
+			}
+
 			id, err := st.pusher.CreateInterface(j)
 			if err != nil {
 				errs = errors.Join(errs, err)
@@ -220,7 +255,7 @@ func (st *SuzieQTranslate) translateNetboxConfig(conf interface{}, reqKey string
 }
 
 func (st *SuzieQTranslate) translateDevice(device *storage.DbDevice) ([]byte, error) {
-	var ret deviceJsonReturn
+	var ret DeviceJsonReturn
 	if device.Config != nil {
 		if value := st.translateNetboxConfig(device.Config, "site"); value != nil {
 			if name, ok := value.(string); ok {
@@ -248,7 +283,7 @@ func (st *SuzieQTranslate) translateDevice(device *storage.DbDevice) ([]byte, er
 }
 
 func (st *SuzieQTranslate) translateInterface(ifs *storage.DbInterface, deviceID int64) ([]byte, error) {
-	var ret ifJsonReturn
+	var ret IfJsonReturn
 	ret.DeviceID = deviceID
 	ret.Name = ifs.Name
 	ret.Type = ifs.IfType
@@ -260,7 +295,7 @@ func (st *SuzieQTranslate) translateInterface(ifs *storage.DbInterface, deviceID
 }
 
 func (st *SuzieQTranslate) translateIpInterface(ip *storage.IpAddress, ifID int64) ([]byte, error) {
-	var ret ifIpJsonReturn
+	var ret IfIpJsonReturn
 	ret.IfID = ifID
 	ret.Ip = ip.Address
 	return json.Marshal(ret)
@@ -272,7 +307,7 @@ func (st *SuzieQTranslate) translateVlan(vlan *storage.DbVlan) ([]byte, error) {
 }
 
 func (st *SuzieQTranslate) translateInventory(inv *storage.DbInventory, deviceID int64) ([]byte, error) {
-	var ret invJsonReturn
+	var ret InvJsonReturn
 	ret.DeviceID = deviceID
 	ret.Name = inv.Name
 	ret.AssetTag = inv.Type
