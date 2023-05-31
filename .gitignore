@@ -3,3 +3,5 @@
 .idea
 .testfolder
 .env
+
+docker/config.yml

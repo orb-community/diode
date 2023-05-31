@@ -9,6 +9,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gosimple/slug v1.13.1
 	github.com/mattn/go-sqlite3 v1.14.16
+	github.com/stretchr/testify v1.8.2
 	go.opentelemetry.io/collector/receiver v0.76.1
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
@@ -69,6 +70,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/openzipkin/zipkin-go v0.4.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rs/cors v1.9.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

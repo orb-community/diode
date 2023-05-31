@@ -68,7 +68,6 @@ func main() {
 	}(svc)
 
 	errs := make(chan error, 2)
-
 	err = svc.Start()
 	if err != nil {
 		logger.Fatal("unable to start agent data consumption", zap.Error(err))

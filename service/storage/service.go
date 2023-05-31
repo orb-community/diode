@@ -6,11 +6,14 @@ type Service interface {
 	UpdateDevice(id string, netboxId int64) (DbDevice, error)
 	UpdateVlan(id string, netboxId int64) (DbVlan, error)
 	UpdateInventory(id string, netboxId int64) (DbInventory, error)
+	GetInterfacesByName(name string) ([]DbInterface, error)
 	GetInterfaceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInterface, error)
+	GetDevicesByHostname(hostname string) ([]DbDevice, error)
 	GetDevicesByPolicyAndNamespace(policy, namespace string) ([]DbDevice, error)
 	GetDeviceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) (DbDevice, error)
 	GetVlansByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbVlan, error)
 	GetInventoriesByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInventory, error)
+	GetInventoriesByName(name string) ([]DbInventory, error)
 }
 
 type DbInterface struct {
