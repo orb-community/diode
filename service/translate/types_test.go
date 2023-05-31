@@ -46,7 +46,6 @@ func TestCheckDeviceEqual(t *testing.T) {
 			Name: "site_name_test",
 		},
 	}
-
 	suzieQdevice := DeviceJsonReturn{
 		Name:   "name_test",
 		Status: "status_test",
@@ -85,13 +84,6 @@ func TestCheckDeviceEqual(t *testing.T) {
 	}
 
 	sb.WriteString("Devices are totally equal\n")
-	dbJson, _ := json.Marshal(databaseDevice)
-	sqJson, _ := json.Marshal(suzieQdevice)
-
-	sb.WriteString("Database Device: ")
-	sb.WriteString(string(dbJson) + "\n")
-	sb.WriteString("Suzie Q catched Device: ")
-	sb.WriteString(string(sqJson) + "\n")
 
 	got, err := databaseDevice.CheckDeviceEqual(suzieQdevice, databaseDevice)
 	stringRet := sb.String()
@@ -105,7 +97,7 @@ func TestCheckDeviceNotEqual(t *testing.T) {
 	dbDevice := DeviceJsonReturn{
 		Name:   "name_test",
 		Status: "status_test_another",
-		Serial: "serial_serial_another",
+		Serial: "serial_test_another",
 		Dtype: struct {
 			Model string "json:\"model\""
 			Mfr   struct {
@@ -175,41 +167,84 @@ func TestCheckDeviceNotEqual(t *testing.T) {
 			Name: "site_name_test",
 		},
 	}
-	sb.WriteString("DIFF: \n")
-	sb.WriteString("Database Device Manufacture Name: ")
-	sb.WriteString(string(sqDevice.Dtype.Mfr.Name) + "\n")
-	sb.WriteString("Suzie Q Device Manufacture Name: ")
-	sb.WriteString(string(dbDevice.Dtype.Mfr.Name) + "\n")
+	var DiffJsonRet DiffJsonDeviceRet
+	var DiffDev DiffsDevice
 
-	sb.WriteString("Database Device Model Type: ")
-	sb.WriteString(string(sqDevice.Dtype.Model) + "\n")
-	sb.WriteString("Suzie Q Device Model Type: ")
-	sb.WriteString(string(dbDevice.Dtype.Model) + "\n")
+	DiffJsonRet.MfrName.NetBoxMfrName = dbDevice.Dtype.Mfr.Name
+	DiffJsonRet.MfrName.SuzieQMfrName = sqDevice.Dtype.Mfr.Name
+	DiffJsonRet.Model.NetBoxModel = dbDevice.Dtype.Model
+	DiffJsonRet.Model.SuzieQModel = sqDevice.Dtype.Model
+	DiffJsonRet.Platform.NetBoxPltName = dbDevice.Platform.Name
+	DiffJsonRet.Platform.SuzieQPltName = sqDevice.Platform.Name
+	DiffJsonRet.Status.NetBoxStatus = dbDevice.Status
+	DiffJsonRet.Status.SuzieQStatus = sqDevice.Status
+	DiffJsonRet.Serial.NetBoxSerial = dbDevice.Serial
+	DiffJsonRet.Serial.SuzieQSerial = sqDevice.Serial
+	DiffJsonRet.SiteName.NetBoxSiteName = dbDevice.Site.Name
+	DiffJsonRet.SiteName.SuzieQSiteName = sqDevice.Site.Name
+	DiffJsonRet.Name.NetBoxName = dbDevice.Name
+	DiffJsonRet.Name.SuzieQName = sqDevice.Name
 
-	sb.WriteString("Database Device Platform Name: ")
-	sb.WriteString(string(sqDevice.Platform.Name) + "\n")
-	sb.WriteString("Suzie Q Device Platform Name: ")
-	sb.WriteString(string(dbDevice.Platform.Name) + "\n")
+	DiffDev.DeviceDiffs = append(DiffDev.DeviceDiffs, DiffJsonRet)
+	DiffDevJson, _ := json.Marshal(DiffDev)
 
-	sb.WriteString("Database Device Status: ")
-	sb.WriteString(string(sqDevice.Status) + "\n")
-	sb.WriteString("Suzie Q Device Status: ")
-	sb.WriteString(string(dbDevice.Status) + "\n")
-
-	sb.WriteString("Database Device Serial: ")
-	sb.WriteString(string(sqDevice.Serial) + "\n")
-	sb.WriteString("Suzie Q Device Serial: ")
-	sb.WriteString(string(dbDevice.Serial) + "\n")
-
-	sb.WriteString("Database Device Site Name: ")
-	sb.WriteString(string(sqDevice.Site.Name) + "\n")
-	sb.WriteString("Suzie Q Device Site Name: ")
-	sb.WriteString(string(dbDevice.Site.Name) + "\n")
+	sb.WriteString(string(DiffDevJson))
 	got, err := dbDevice.CheckDeviceEqual(sqDevice, dbDevice)
 	stringRet := sb.String()
 
 	assert.Nil(t, err)
 	assert.Equal(t, stringRet, got)
+}
+func TestCheckDeviceWithEmptyObject(t *testing.T) {
+	var sb strings.Builder
+	dbDevice := DeviceJsonReturn{
+		Name:   "name_test",
+		Status: "status_test_another",
+		Serial: "serial_test_another",
+		Dtype: struct {
+			Model string "json:\"model\""
+			Mfr   struct {
+				Name string "json:\"name\""
+			} "json:\"manufacturers\""
+		}{
+			Model: "model_test_another",
+			Mfr: struct {
+				Name string "json:\"name\""
+			}{
+				Name: "mfr_name_test_another",
+			},
+		},
+		Platform: &struct {
+			Name string "json:\"name\""
+			Mfr  struct {
+				Name string "json:\"name\""
+			} "json:\"manufacturers\""
+		}{
+			Name: "platform_test_another",
+			Mfr: struct {
+				Name string "json:\"name\""
+			}{
+				Name: "mfr_name_test_another",
+			},
+		},
+		Site: &struct {
+			Name string "json:\"name\""
+		}{
+			Name: "site_name_test_another",
+		},
+	}
+
+	sqDevice := DeviceJsonReturn{}
+
+
+	sb.WriteString("Empty object catched by Suzie Q")
+
+	got, err := dbDevice.CheckDeviceEqual(sqDevice, dbDevice)
+	stringRet := sb.String()
+
+	assert.Nil(t, err)
+	assert.Equal(t, stringRet, got)
+
 }
 
 func TestCheckInterfaceEqual(t *testing.T) {
@@ -237,13 +272,6 @@ func TestCheckInterfaceEqual(t *testing.T) {
 	got, err := suzieQIfc.CheckInterfaceEqual(suzieQIfc, databaseIfc)
 
 	sb.WriteString("Interfaces are totally equal\n")
-	dbJson, _ := json.Marshal(suzieQIfc)
-	sqJson, _ := json.Marshal(databaseIfc)
-
-	sb.WriteString("Database Interface: ")
-	sb.WriteString(string(dbJson) + "\n")
-	sb.WriteString("Suzie Q catched Interface: ")
-	sb.WriteString(string(sqJson) + "\n")
 	retString := sb.String()
 
 	assert.Nil(t, err)
@@ -253,7 +281,7 @@ func TestCheckInterfaceEqual(t *testing.T) {
 func TestCheckInterfaceNotEqual(t *testing.T) {
 	var sb strings.Builder
 	dbInterface := IfJsonReturn{
-		DeviceID:   1,
+		DeviceID:   1000,
 		Name:       "test_name",
 		Type:       "test_type",
 		Speed:      200,
@@ -263,35 +291,69 @@ func TestCheckInterfaceNotEqual(t *testing.T) {
 	}
 
 	sqInterface := IfJsonReturn{
-		DeviceID:   1,
+		DeviceID:   1100,
 		Name:       "test_name",
 		Type:       "test_type_other",
-		Speed:      200,
-		Mtu:        300,
+		Speed:      300,
+		Mtu:        500,
 		MacAddress: "test_addr_other",
 		State:      "test_state_other",
 	}
-	sb.WriteString("DIFF: \n")
-	sb.WriteString("Database IFC Mac Address: ")
-	sb.WriteString(string(dbInterface.MacAddress) + "\n")
-	sb.WriteString("Suzie Q IFC Mac Address: ")
-	sb.WriteString(string(sqInterface.MacAddress) + "\n")
+	
+	var ifcDiffs DiffInterfaceRet
+	var IfcDiffsReturn DiffsInterface
 
-	sb.WriteString("Database IFC State: ")
-	sb.WriteString(string(dbInterface.State) + "\n")
-	sb.WriteString("Suzie Q IFC State: ")
-	sb.WriteString(string(sqInterface.State) + "\n")
+	ifcDiffs.MacAddress.SuzieQIfcMacAddr = sqInterface.MacAddress
+	ifcDiffs.MacAddress.NetBoxIfcMacAddr = dbInterface.MacAddress
 
-	sb.WriteString("Database IFC Type: ")
-	sb.WriteString(string(dbInterface.Type) + "\n")
-	sb.WriteString("Suzie Q IFC Type: ")
-	sb.WriteString(string(sqInterface.Type) + "\n")
+	ifcDiffs.Speed.SuzieQIfcSpeed = sqInterface.Speed
+	ifcDiffs.Speed.NetboxIfcSpeed = dbInterface.Speed
+
+	ifcDiffs.DeviceID.SuzieQDevId = sqInterface.DeviceID
+	ifcDiffs.DeviceID.NetBoxDevId = dbInterface.DeviceID
+
+	ifcDiffs.Type.SuzieQIfcType = sqInterface.Type
+	ifcDiffs.Type.NetBoxIfcType = dbInterface.Type
+
+	ifcDiffs.Mtu.SuzieQIfcMtu = sqInterface.Mtu
+	ifcDiffs.Mtu.NetBoxIfcMtu = dbInterface.Mtu
+
+	ifcDiffs.State.NetBoxIfcState = dbInterface.State
+	ifcDiffs.State.SuzieQIfcState = sqInterface.State
+
+	IfcDiffsReturn.InterfaceDiffs = append(IfcDiffsReturn.InterfaceDiffs, ifcDiffs)
+
+	DiffIfcJson, _ := json.Marshal(IfcDiffsReturn)
+
+	sb.WriteString(string(DiffIfcJson))
 
 	got, err := sqInterface.CheckInterfaceEqual(sqInterface, dbInterface)
 	stringRet := sb.String()
-
 	assert.Nil(t, err)
 	assert.Equal(t, stringRet, got)
+}
+
+func TestCheckInterfaceWithEmptyObject(t *testing.T) {
+	var sb strings.Builder
+	databaseIfc := IfJsonReturn{
+		DeviceID:   1,
+		Name:       "test_name",
+		Type:       "test_type",
+		Speed:      200,
+		Mtu:        300,
+		MacAddress: "test_addr",
+		State:      "test_state",
+	}
+
+	suzieQIfc := IfJsonReturn{}
+
+	got, err := suzieQIfc.CheckInterfaceEqual(suzieQIfc, databaseIfc)
+
+	sb.WriteString("Empty object catched by Suzie Q")
+	retString := sb.String()
+
+	assert.Nil(t, err)
+	assert.Equal(t, retString, got)
 }
 
 func TestCheckInventoriesEqual(t *testing.T) {
@@ -325,13 +387,6 @@ func TestCheckInventoriesEqual(t *testing.T) {
 	}
 
 	sb.WriteString("Inventories are totally equal\n")
-	dbJson, _ := json.Marshal(dbInv)
-	sqJson, _ := json.Marshal(sqInv)
-
-	sb.WriteString("Database Inventory: ")
-	sb.WriteString(string(dbJson) + "\n")
-	sb.WriteString("Suzie Q Inventory: ")
-	sb.WriteString(string(sqJson) + "\n")
 
 	got, err := sqInv.CheckInventoriesEqual(sqInv, dbInv)
 	retString := sb.String()
@@ -339,7 +394,7 @@ func TestCheckInventoriesEqual(t *testing.T) {
 	assert.Equal(t, retString, got)
 }
 
-func TestCheckIventoriesNotEqual(t *testing.T) {
+func TestCheckInventoriesNotEqual(t *testing.T) {
 	var sb strings.Builder
 	sqInv := InvJsonReturn{
 		DeviceID: 1,
@@ -356,37 +411,84 @@ func TestCheckIventoriesNotEqual(t *testing.T) {
 	}
 
 	dbInv := InvJsonReturn{
-		DeviceID: 1,
+		DeviceID: 2,
 		Name:     "name_test",
 		AssetTag: "asset_test_other",
+		Mfr: struct {
+			Name string "json:\"name\""
+		}{
+			Name: "mfr_name_other",
+		},
+		PartId: "partid_test_other",
+		Descr:  "descr_test_other",
+		Serial: "serial_test_other",
+	}
+
+	var DiffsRet DiffsInv
+	var DiffsInv DiffInventoriesRet
+
+	DiffsInv.DeviceID.SuzieQDevId = sqInv.DeviceID
+	DiffsInv.DeviceID.NetBoxDevId = dbInv.DeviceID
+
+
+	DiffsInv.AssetTag.SuzieQAssetTag = sqInv.AssetTag
+	DiffsInv.AssetTag.NetBoxAssetTag = dbInv.AssetTag
+
+
+	DiffsInv.MfrName.SuzieQMfrName = sqInv.Mfr.Name
+	DiffsInv.MfrName.NetBoxMfrName = dbInv.Mfr.Name
+
+
+	DiffsInv.PartId.SuzieQPartId = sqInv.PartId
+	DiffsInv.PartId.NetBoxPartid = dbInv.PartId
+
+
+	DiffsInv.Descr.SuzieQDescr = sqInv.Descr
+	DiffsInv.Descr.NetBoxDescr = dbInv.Descr
+
+	DiffsInv.Serial.SuzieQSerial = sqInv.Serial
+	DiffsInv.Serial.NetBoxSerial = dbInv.Serial
+
+	DiffsInv.Name.NetBoxIfcName = dbInv.Name
+	DiffsInv.Name.SuzieQIfcName = sqInv.Name
+	
+	DiffsRet.InventoriesDiffs = append(DiffsRet.InventoriesDiffs, DiffsInv)
+
+	DiffInvJson, _ := json.Marshal(DiffsRet)
+
+	sb.WriteString(string(DiffInvJson))
+
+	got, err := sqInv.CheckInventoriesEqual(sqInv, dbInv)
+	retString := sb.String()
+	assert.Nil(t, err)
+	assert.Equal(t, retString, got)
+}
+
+func TestCheckInventoryWithEmptyObject(t *testing.T) {
+	var sb strings.Builder
+	sqInv := InvJsonReturn{
+		DeviceID: 1,
+		Name:     "name_test",
+		AssetTag: "asset_test",
 		Mfr: struct {
 			Name string "json:\"name\""
 		}{
 			Name: "mfr_name",
 		},
 		PartId: "partid_test",
-		Descr:  "descr_test_other",
-		Serial: "serial_test_other",
+		Descr:  "descr_test",
+		Serial: "serial_test",
 	}
 
-	sb.WriteString("DIFF: \n")
+	dbInv := InvJsonReturn{}
 
-	sb.WriteString("Database INV AssetTag: ")
-	sb.WriteString(string(dbInv.AssetTag) + "\n")
-	sb.WriteString("Suzie Q INV AssetTag: ")
-	sb.WriteString(string(sqInv.AssetTag) + "\n")
-	sb.WriteString("Database INV Description: ")
-	sb.WriteString(string(dbInv.Descr) + "\n")
-	sb.WriteString("Suzie Q INV Description: ")
-	sb.WriteString(string(sqInv.Descr) + "\n")
-	sb.WriteString("Database INV Serial: ")
-	sb.WriteString(string(dbInv.Serial) + "\n")
-	sb.WriteString("Suzie Q INV Serial: ")
-	sb.WriteString(string(sqInv.Serial) + "\n")
 
-	got, err := sqInv.CheckInventoriesEqual(sqInv, dbInv)
-	retString := sb.String()
+	sb.WriteString("Empty object catched by Suzie Q")
+
+	got, err := dbInv.CheckInventoriesEqual(dbInv, sqInv)
+	stringRet := sb.String()
+
 	assert.Nil(t, err)
-	assert.Equal(t, retString, got)
+	assert.Equal(t, stringRet, got)
 
 }

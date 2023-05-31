@@ -78,8 +78,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				}
 				ret, err := deviceJson.CheckDeviceEqual(deviceJson, dbJson)
 				if err != nil {
-					err = errors.New("error during device check")
-					errs = errors.Join(errs, err)
+					st.logger.Error("error checking device equality", zap.Any("error: ", err))
 					continue
 				}
 				fmt.Println(ret)
@@ -131,7 +130,8 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 
 			DbInterfaces, err := st.db.GetInterfacesByName(ifce.Name)
 			if err != nil {
-				fmt.Println("Erro tentando pegar as interfaces do banco", err)
+				st.logger.Error("error retrieving interfaces", zap.Any("error: ", err))
+				continue
 			}
 
 			for _, ifcDb := range DbInterfaces {
@@ -184,6 +184,13 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 					errs = errors.Join(errs, err)
 					continue
 				}
+
+				var ifIpJson IfIpJsonReturn
+				err = json.Unmarshal(j, &ifIpJson)
+				if err != nil {
+					errs = errors.Join(errs, err)
+				}
+
 				if _, err := st.pusher.CreateInterfaceIpAddress(j); err != nil {
 					errs = errors.Join(errs, err)
 				}
@@ -222,6 +229,48 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
+
+
+			DbInventories, err := st.db.GetInventoriesByName(inventory.Name)
+			if err != nil {
+				st.logger.Error("error retrieving inventories", zap.Any("error: ", err))
+				continue
+			}
+
+			for _, invDb := range DbInventories {
+				invSq := inventory
+				invSqTranslated, err := st.translateInventory(&invSq, device.NetboxRefId)
+				if err != nil {
+					st.logger.Error("error translating interface", zap.Any("error: ", err))
+					continue
+				}
+				var invSqJson InvJsonReturn
+				err = json.Unmarshal(invSqTranslated, &invSqJson)
+				if err != nil {
+					st.logger.Error("error unmarshaling interface", zap.Any("error: ", err))
+					continue
+				}
+
+				invDbTranslated, err := st.translateInventory(&invDb, device.NetboxRefId)
+				if err != nil {
+					st.logger.Error("error translating interface", zap.Any("error: ", err))
+					continue
+				}
+				var invDbJson InvJsonReturn
+				err = json.Unmarshal(invDbTranslated, &invDbJson)
+				if err != nil {
+					st.logger.Error("error unmarshaling interface", zap.Any("error: ", err))
+					continue
+				}
+
+				ret, err := invDbJson.CheckInventoriesEqual(invDbJson, invSqJson)
+				if err != nil {
+					st.logger.Error("error checking inventories equality", zap.Any("error: ", err))
+					continue
+				}
+				fmt.Println(ret)
+			}
+
 			id, err := st.pusher.CreateInventory(j)
 			if err != nil {
 				errs = errors.Join(errs, err)

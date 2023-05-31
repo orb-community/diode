@@ -24,6 +24,8 @@ func NewSqliteStorage(logger *zap.Logger) (Service, error) {
 	return sqliteStorage{db: db, logger: logger}, nil
 }
 
+
+
 func (s sqliteStorage) GetInterfacesByName(name string) ([]DbInterface, error) {
 	selectResult, err := s.db.Query(`
 		SELECT id, policy, config, namespace, hostname, name, admin_state, mtu, speed, mac_address, if_type, netbox_id, ip_addresses, json_data
@@ -200,6 +202,35 @@ func (s sqliteStorage) GetVlansByPolicyAndNamespaceAndHostname(policy, namespace
 	}
 
 	return vlans, nil
+}
+
+func (s sqliteStorage) GetInventoriesByName(name string) ([]DbInventory, error) {
+	selectResult, err := s.db.Query(`
+	SELECT id, policy, config, namespace, hostname, name, description, vendor, serial, part_num, type, netbox_id, json_data
+	FROM inventories
+	WHERE name = $1
+	`, name)
+	if err != nil {
+		return nil, errors.Join(errors.New("storage fetch inventory fail"), err)
+	}
+	var inventories []DbInventory
+	var configAsString string
+	for selectResult.Next() {
+		var inventory DbInventory
+		err := selectResult.Scan(&inventory.Id, &inventory.Policy, &configAsString, &inventory.Namespace, &inventory.Hostname, &inventory.Name,
+			&inventory.Descr, &inventory.Vendor, &inventory.Serial, &inventory.PartNum, &inventory.Type, &inventory.NetboxRefId, &inventory.Blob)
+		if err != nil {
+			return nil, errors.Join(errors.New("storage create inventory struct fail"), err)
+		}
+		if len(configAsString) > 0 {
+			err = json.Unmarshal([]byte(configAsString), &inventory.Config)
+			if err != nil {
+				return nil, errors.Join(errors.New("storage config parse fail"), err)
+			}
+		}
+		inventories = append(inventories, inventory)
+	}
+	return inventories, nil
 }
 
 func (s sqliteStorage) GetInventoriesByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInventory, error) {

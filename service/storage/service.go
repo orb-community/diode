@@ -13,6 +13,7 @@ type Service interface {
 	GetDeviceByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) (DbDevice, error)
 	GetVlansByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbVlan, error)
 	GetInventoriesByPolicyAndNamespaceAndHostname(policy, namespace, hostname string) ([]DbInventory, error)
+	GetInventoriesByName(name string) ([]DbInventory, error)
 }
 
 type DbInterface struct {
