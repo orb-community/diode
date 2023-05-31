@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/orb-community/diode/service/config"
 	"github.com/orb-community/diode/service/nb_pusher"
@@ -81,7 +80,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 					st.logger.Error("error checking device equality", zap.Any("error: ", err))
 					continue
 				}
-				fmt.Println(ret)
+				st.logger.Info("devices difference", zap.String("diffs: ", ret))
 			}
 
 			id, err := st.pusher.CreateDevice(j)
@@ -165,7 +164,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 					st.logger.Error("error checking interface equality", zap.Any("error: ", err))
 					continue
 				}
-				fmt.Println(ret)
+				st.logger.Info("devices difference", zap.String("diffs: ", ret))
 			}
 
 			id, err := st.pusher.CreateInterface(j)
@@ -268,7 +267,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 					st.logger.Error("error checking inventories equality", zap.Any("error: ", err))
 					continue
 				}
-				fmt.Println(ret)
+				st.logger.Info("devices difference", zap.String("diffs: ", ret))
 			}
 
 			id, err := st.pusher.CreateInventory(j)
