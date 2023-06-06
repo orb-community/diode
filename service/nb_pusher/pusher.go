@@ -185,6 +185,7 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 	data.Tags = nb.discoveryTag
 
 	device.Data = &data
+	
 	var created *dcim.DcimDevicesCreateCreated
 	created, err = nb.client.Dcim.DcimDevicesCreate(device, nil)
 	if err != nil {
@@ -268,7 +269,7 @@ func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
 	data.AssignedObjectID = &ipData.AsgdObjID
 	data.AssignedObjectType = &INTERFACE_OBJ_TYPE
 	data.Tags = nb.discoveryTag
-
+	
 	ip.Data = &data
 	var created *ipam.IpamIPAddressesCreateCreated
 	created, err = nb.client.Ipam.IpamIPAddressesCreate(ip, nil)

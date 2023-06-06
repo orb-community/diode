@@ -2,7 +2,6 @@ package translate
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strings"
 )
@@ -195,14 +194,12 @@ func (DeviceJsonReturn) CheckDeviceEqual(sqDevice, dbDevice DeviceJsonReturn) (s
 			if err != nil {
 				return "", err
 			}
-			fmt.Println(sb.String())
 			sb.WriteString(string(DiffDevJson))
 
 			return sb.String(), nil
 		}
 	} else if (DeviceJsonReturn{}) == sqDevice {
 		sb.WriteString("Empty object catched by Suzie Q")
-		fmt.Println(sb.String())
 		return sb.String(), nil
 	}
 	return "", nil
@@ -213,7 +210,6 @@ func (IfJsonReturn) CheckInterfaceEqual(sqInterface, dbInterface IfJsonReturn) (
 	if sqInterface.Name == dbInterface.Name {
 		if reflect.DeepEqual(sqInterface, dbInterface) {
 			sb.WriteString("Interfaces are totally equal\n")
-			fmt.Println(sb.String())
 			return sb.String(), nil
 		} else {
 			var ifcDiffs DiffInterfaceRet
@@ -246,12 +242,10 @@ func (IfJsonReturn) CheckInterfaceEqual(sqInterface, dbInterface IfJsonReturn) (
 				return "", err
 			}
 			sb.WriteString(string(DiffIfcJson))
-			fmt.Println(sb.String())
 			return sb.String(), nil
 		}
 	} else if (IfJsonReturn{}) == sqInterface {
 		sb.WriteString("Empty object catched by Suzie Q")
-		fmt.Println(sb.String())
 		return sb.String(), nil
 	}
 	return "", nil
@@ -296,13 +290,10 @@ func (InvJsonReturn) CheckInventoriesEqual(sqInventory, dbInventory InvJsonRetur
 				return "", err
 			}
 			sb.WriteString(string(DiffInvJson))
-			fmt.Println(sb.String())
-
 			return sb.String(), nil
 		}
 	} else if (InvJsonReturn{}) == sqInventory {
 		sb.WriteString("Empty object catched by Suzie Q")
-		fmt.Println(sb.String())
 		return sb.String(), nil
 	}
 	return "", nil
