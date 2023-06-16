@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 
 	transport "github.com/go-openapi/runtime/client"
 	"github.com/gosimple/slug"
@@ -181,10 +182,6 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 		data.Platform = &nb.unkPlatID
 	}
 
-	if deviceData.PrimaryIp.NoMatch {
-		data.Description = "no matching results in device and interface IP. Device IP address: " + deviceData.PrimaryIp.IpAddr
-	}
-
 	data.Status = DeviceStatusMap[deviceData.Status]
 	data.Name = &deviceData.Name
 	data.Serial = deviceData.Serial
@@ -210,13 +207,17 @@ func (nb *NetboxPusher) PrimaryIpCheck(IfcIpAddress string, IfcIpId int64, ipChe
 		}
 	}
 
+	// iterate over all devices addresses recently created 
 	for idx, addr := range ipChecker.IpInfo.DeviceAddresses {
-		if IfcIpAddress == addr {
-			ipVers, err := checkIpVersion(addr)
+		addrIfcWithoutMask := strings.Split(IfcIpAddress, "/")
+		addrDvcWithoutMask := strings.Split(addr, "/")
+		if addrDvcWithoutMask[0] == addrIfcWithoutMask[0] {
+			ipVers, err := checkIpVersion(addrDvcWithoutMask[0])
 			if err != nil {
-				fmt.Println("erro na checagem de IP Primary Ip Check", err)
+				return invalid_id, err
 			}
 			nb.UpdateDevice(IfcIpId, ipChecker.IpInfo.DeviceId[idx], ipVers)
+			// if there's a match over the objects: update the device
 		}
 	}
 	
@@ -231,19 +232,14 @@ func (nb *NetboxPusher) UpdateDevice(ifcIpId, deviceId int64, ipVersion string) 
 		}
 	}
 
-	// Create an instance of device read params 
-	// to capture the specific device with the given id
 	dvcListParams := dcim.NewDcimDevicesReadParams()
-	dvcListParams.SetID(deviceId)
+	dvcListParams.SetID(deviceId) 
 	device, err := nb.client.Dcim.DcimDevicesRead(dvcListParams, nil)
 	
 	if err != nil {
-		fmt.Println("Error during the device catch function: ", err)
+		nb.logger.Error("Error during the device catch function: ", zap.Any("error ", err))
+		return invalid_id, err
 	}
-
-	fmt.Println("Device name: ", *device.Payload.Name)
-	fmt.Println("Device name address memory: ", device.Payload.Name)
-
 
 	// Create an instance of update device params
 	dvcUpdateParams := dcim.NewDcimDevicesUpdateParams()
@@ -265,7 +261,8 @@ func (nb *NetboxPusher) UpdateDevice(ifcIpId, deviceId int64, ipVersion string) 
 	deviceUpdateOk, err := nb.client.Dcim.DcimDevicesUpdate(dvcUpdateParams, nil)
 
 	if err != nil {
-		fmt.Println("Error during the device update: ", err)
+		nb.logger.Error("Error during the device update function: ", zap.Any("error ", err))
+		return invalid_id, err
 	}
 	return deviceUpdateOk.Payload.ID, nil
 }
@@ -349,7 +346,7 @@ func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte, ipChecker NetboxPrima
 	if err != nil {
 		return invalid_id, err
 	}
-	nb.PrimaryIpCheck(ipData.Address, created.Payload.ID , ipChecker) // Passando o ID da interface
+	nb.PrimaryIpCheck(ipData.Address, created.Payload.ID, ipChecker)
 	nb.logger.Info("ip address for interface created", zap.String("ip_address", ipData.Address))
 	return created.Payload.ID, nil
 }
@@ -670,8 +667,13 @@ func (nb *NetboxPusher) createIpPrefix(prefix string, tag []*models.NestedTag) (
 }
 
 func checkIpVersion(ipAddress string) (string, error) {
-	if net.ParseIP(ipAddress).To4() == nil {
-		return "ipv6", nil
+	if ipVers := net.ParseIP(ipAddress); ipVers != nil {
+		if ipVers.To4() != nil {
+			return "ipv4", nil
+		}
+		if ipVers.To16() != nil {
+			return "ipv6", nil
+		}
 	}
-	return "ipv4", nil
+	return "", nil
 }

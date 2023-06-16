@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 
 	"github.com/orb-community/diode/service/config"
@@ -75,9 +74,30 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 					}
 				}
 			}
+			
+			ifs, err := st.db.GetInterfaceByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
 
-			// Translating the device at the beginning because its needed to unmarshall the json
-			// and perform some attributions on the json struct to be sent to the pusher
+			for _, ifc := range ifs {
+				if len(ifc.IpAddresses) > 0 {
+					for idx := range ifc.IpAddresses {
+						if ifc.IpAddresses[idx].Address == device.Address {
+							st.logger.Info("matching ip addr between interface and device", zap.String("primary IP: ", device.Address))
+						} 
+					}
+				}
+			}
+	
+			DbDevices, err := st.db.GetDevicesByHostname(device.Hostname)
+			if err != nil {
+				err = errors.New("error returning devices from db")
+				errs = errors.Join(errs, err)
+				continue
+			}
+
 			j, err := st.translateDevice(&device)
 			if err != nil {
 				errs = errors.Join(errs, err)
@@ -87,38 +107,6 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			err = json.Unmarshal(j, &deviceJson)
 			if err != nil {
 				errs = errors.Join(err)
-				continue
-			}	
-			// Check for matches between the interfaces ip address and the device address
-			ifs, err := st.db.GetInterfaceByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
-
-			var matchCounter int
-			for _, ifc := range ifs {
-				if len(ifc.IpAddresses) > 0 {
-					for idx := range ifc.IpAddresses {
-						if ifc.IpAddresses[idx].Address == device.Address {
-							st.logger.Info("matching ip addr between interface and device", zap.String("primary IP: ", device.Address))
-							deviceJson.IpAddress.NoMatchIfcIp = false // Caso haja um IP identico entre os objetos
-						} else {
-							matchCounter++
-						}
-					}
-				}
-			}
-			// if there's no match
-			if matchCounter == (len(ifs) + 1) {
-				st.logger.Info("no matching ip addr between interface and device.", zap.String(":device primary IP: ", device.Address))
-				//deviceJson.IpAddress.NoMatchIfcIp = true
-			}
-
-			DbDevices, err := st.db.GetDevicesByHostname(device.Hostname)
-			if err != nil {
-				err = errors.New("error returning devices from db")
-				errs = errors.Join(errs, err)
 				continue
 			}
 
@@ -144,20 +132,15 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				st.logger.Info("devices difference", zap.String("diffs: ", ret))
 			}
 
-			if err != nil {
-				fmt.Println("erro na translate: ", err)
-			}
-
 			id, err := st.pusher.CreateDevice(j)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
 
-			// Pass to ipChecker the Device IP Addr and the Device ID
+			// the ipChecker struct will be sent to the createInterfaceIpAddress as parameter
 			ipChecker.IpInfo.DeviceAddresses = append(ipChecker.IpInfo.DeviceAddresses, deviceJson.IpAddress.Address) 
 			ipChecker.IpInfo.DeviceId = append(ipChecker.IpInfo.DeviceId, id)
-			fmt.Println("ID DO DEVICE RECEM CRIADO: ", id)
 			newDevice, err := st.db.UpdateDevice(device.Id, id)
 			if err != nil {
 				errs = errors.Join(errs, err)
@@ -264,21 +247,13 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				if err != nil {
 					errs = errors.Join(errs, err)
 				}
-
 				_, err = st.pusher.CreateInterfaceIpAddress(j, ipChecker)
-				// TODO!!: checar se o id é correto
 				if err != nil {
 					errs = errors.Join(errs, err)
 				}
 
 			}
 		}
-
-
-		// _, err := st.pusher.PrimaryIpChecker(ipChecker)
-		// if err != nil {
-		// 	fmt.Println("erro no primary ip checker: ", err)
-		// }
 
 		return errs
 	} else if vlans, ok := data.([]storage.DbVlan); ok {
@@ -301,7 +276,6 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			}
 			device, err := st.db.GetDeviceByPolicyAndNamespaceAndHostname(inventory.Policy, inventory.Namespace, inventory.Hostname)
 			if err != nil {
-				fmt.Println("Erro no GetDeviceByPolicyAndNamespaceAndHostname dentro do inventories: ", err)
 				errs = errors.Join(errs, err)
 				continue
 			} else if device.NetboxRefId == invalid_id {
@@ -417,7 +391,7 @@ func (st *SuzieQTranslate) translateDevice(device *storage.DbDevice) ([]byte, er
 	ret.IpAddress = &struct{
 		Address string "json:\"ip_address,omitempty\""; 
 		Version string "json:\"ip_version,omitempty\"";
-		NoMatchIfcIp bool "json:\"ifc_matched,omitempty\""}{Address: device.Address, Version: "", NoMatchIfcIp: true}
+		}{Address: device.Address, Version: ""}
 
 	return json.Marshal(ret)
 }
@@ -480,7 +454,6 @@ func (st *SuzieQTranslate) checkExistingInterfaces(device *storage.DbDevice) err
 func (st *SuzieQTranslate) checkExistingInventories(device *storage.DbDevice) error {
 	invs, err := st.db.GetInventoriesByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
 	if err != nil {
-		fmt.Println("Erro no checkexistinginventories: ", err)
 		return nil
 	}
 	var inv []storage.DbInventory

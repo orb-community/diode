@@ -49,7 +49,6 @@ type NetboxDevice struct {
 	Role      	*NetboxObject     `json:"device_role"`
 	Type      	*NetboxDeviceType `json:"device_type"`
 	Platform  	*NetboxPlatform   `json:"platform"`
-	PrimaryIp 	*NetboxDeviceIp	  `json:"primary_ip"`
 	Name      	string            `json:"name"`
 	Slug      	string            `json:"slug"`
 	Status    	string            `json:"status"`
@@ -63,10 +62,6 @@ type NetboxPrimaryIpChecker struct {
 	}
 }
 
-type NetboxDeviceIp struct {
-	IpAddr string `json:"ip_address"`
-	NoMatch bool `json:"ifc_matched"`
-}
 type NetboxInterface struct {
 	DeviceID   int64  `json:"device_id"`
 	Name       string `json:"name"`

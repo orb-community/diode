@@ -28,7 +28,6 @@ type DeviceJsonReturn struct {
 	IpAddress *struct {
 		Address string `json:"ip_address,omitempty"`
 		Version string `json:"ip_version,omitempty"`
-		NoMatchIfcIp bool `json:"ifc_matched,omitempty"`
 	} `json:"primary_ip,omitempty"`
  
 }
