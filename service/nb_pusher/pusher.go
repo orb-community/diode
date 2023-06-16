@@ -27,9 +27,11 @@ type Pusher interface {
 	Start() error
 	Stop() error
 	CreateDevice([]byte) (int64, error)
+	UpdateDevice(int64, int64, string) (int64, error)
 	CreateInterface([]byte) (int64, error)
-	CreateInterfaceIpAddress([]byte) (int64, error)
+	CreateInterfaceIpAddress([]byte, NetboxPrimaryIpChecker) (int64, error)
 	CreateInventory([]byte) (int64, error)
+	PrimaryIpCheck(string, int64, NetboxPrimaryIpChecker) (int64, error)
 }
 
 type NetboxPusher struct {
@@ -103,13 +105,13 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 		}
 	}
 	var deviceData NetboxDevice
+
 	if err = json.Unmarshal(j, &deviceData); err != nil {
 		return invalid_id, err
 	}
-
 	device := dcim.NewDcimDevicesCreateParams()
 	var data models.WritableDeviceWithConfigContext
-
+	
 	var siteID int64
 	if deviceData.Site != nil {
 		deviceData.Site.Slug = slug.Make(deviceData.Site.Name)
@@ -179,20 +181,93 @@ func (nb *NetboxPusher) CreateDevice(j []byte) (int64, error) {
 		data.Platform = &nb.unkPlatID
 	}
 
+	if deviceData.PrimaryIp.NoMatch {
+		data.Description = "no matching results in device and interface IP. Device IP address: " + deviceData.PrimaryIp.IpAddr
+	}
+
 	data.Status = DeviceStatusMap[deviceData.Status]
 	data.Name = &deviceData.Name
 	data.Serial = deviceData.Serial
 	data.Tags = nb.discoveryTag
 
 	device.Data = &data
-	
+
 	var created *dcim.DcimDevicesCreateCreated
 	created, err = nb.client.Dcim.DcimDevicesCreate(device, nil)
 	if err != nil {
 		return invalid_id, err
 	}
+
 	nb.logger.Info("device created", zap.String("device", deviceData.Name))
 	return created.Payload.ID, nil
+}
+
+func (nb *NetboxPusher) PrimaryIpCheck(IfcIpAddress string, IfcIpId int64, ipChecker NetboxPrimaryIpChecker) (int64, error) {
+	var err error
+	if !nb.tagsInit {
+		if err = nb.initializeDiodeTags(); err != nil {
+			return invalid_id, err
+		}
+	}
+
+	for idx, addr := range ipChecker.IpInfo.DeviceAddresses {
+		if IfcIpAddress == addr {
+			ipVers, err := checkIpVersion(addr)
+			if err != nil {
+				fmt.Println("erro na checagem de IP Primary Ip Check", err)
+			}
+			nb.UpdateDevice(IfcIpId, ipChecker.IpInfo.DeviceId[idx], ipVers)
+		}
+	}
+	
+	return 0, nil
+}
+
+func (nb *NetboxPusher) UpdateDevice(ifcIpId, deviceId int64, ipVersion string) (int64, error) {
+	var err error
+	if !nb.tagsInit {
+		if err = nb.initializeDiodeTags(); err != nil {
+			return invalid_id, err
+		}
+	}
+
+	// Create an instance of device read params 
+	// to capture the specific device with the given id
+	dvcListParams := dcim.NewDcimDevicesReadParams()
+	dvcListParams.SetID(deviceId)
+	device, err := nb.client.Dcim.DcimDevicesRead(dvcListParams, nil)
+	
+	if err != nil {
+		fmt.Println("Error during the device catch function: ", err)
+	}
+
+	fmt.Println("Device name: ", *device.Payload.Name)
+	fmt.Println("Device name address memory: ", device.Payload.Name)
+
+
+	// Create an instance of update device params
+	dvcUpdateParams := dcim.NewDcimDevicesUpdateParams()
+	var data models.WritableDeviceWithConfigContext // Writable device object
+	data.ID = device.Payload.ID
+	// Check for the ip version and set the primary ip ID to the correct attribute
+	if ipVersion == "ipv4" {
+		data.PrimaryIp4 = &ifcIpId
+	} else if ipVersion == "ipv6" {
+		data.PrimaryIp6 = &ifcIpId
+	}
+	
+	// Finishing constructing the mandatory fields for update call
+	data.DeviceRole = &device.Payload.DeviceRole.ID
+	data.DeviceType = &device.Payload.DeviceType.ID
+	data.Site = &device.Payload.Site.ID
+	dvcUpdateParams.Data = &data
+	dvcUpdateParams.ID = device.Payload.ID
+	deviceUpdateOk, err := nb.client.Dcim.DcimDevicesUpdate(dvcUpdateParams, nil)
+
+	if err != nil {
+		fmt.Println("Error during the device update: ", err)
+	}
+	return deviceUpdateOk.Payload.ID, nil
 }
 
 func (nb *NetboxPusher) CreateInterface(j []byte) (int64, error) {
@@ -209,7 +284,6 @@ func (nb *NetboxPusher) CreateInterface(j []byte) (int64, error) {
 
 	ifs := dcim.NewDcimInterfacesCreateParams()
 	var data models.WritableInterface
-
 	data.Device = &interfaceData.DeviceID
 	data.Name = &interfaceData.Name
 	data.Vdcs = []int64{}
@@ -237,7 +311,8 @@ func (nb *NetboxPusher) CreateInterface(j []byte) (int64, error) {
 	return created.Payload.ID, nil
 }
 
-func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
+func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte, ipChecker NetboxPrimaryIpChecker) (int64, error) {
+
 	var err error
 	if !nb.tagsInit {
 		if err = nb.initializeDiodeTags(); err != nil {
@@ -253,7 +328,6 @@ func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
 	if err != nil {
 		return invalid_id, err
 	}
-
 	if nb.loopBackNet.Contains(ipA) {
 		nb.logger.Info("ip_address is a loopback address. Therefore, it will not be created", zap.String("ip_address", ipData.Address))
 		return invalid_id, nil
@@ -269,13 +343,13 @@ func (nb *NetboxPusher) CreateInterfaceIpAddress(j []byte) (int64, error) {
 	data.AssignedObjectID = &ipData.AsgdObjID
 	data.AssignedObjectType = &INTERFACE_OBJ_TYPE
 	data.Tags = nb.discoveryTag
-	
 	ip.Data = &data
 	var created *ipam.IpamIPAddressesCreateCreated
 	created, err = nb.client.Ipam.IpamIPAddressesCreate(ip, nil)
 	if err != nil {
 		return invalid_id, err
 	}
+	nb.PrimaryIpCheck(ipData.Address, created.Payload.ID , ipChecker) // Passando o ID da interface
 	nb.logger.Info("ip address for interface created", zap.String("ip_address", ipData.Address))
 	return created.Payload.ID, nil
 }
@@ -410,6 +484,7 @@ func (nb *NetboxPusher) createSite(site *NetboxSite, tag []*models.NestedTag) (i
 
 func (nb *NetboxPusher) createDeviceRole(role *NetboxObject, tag []*models.NestedTag) (int64, error) {
 	roleCheck := dcim.NewDcimDeviceRolesListParams()
+
 	roleCheck.Slug = &role.Slug
 	var err error
 	var list *dcim.DcimDeviceRolesListOK
@@ -592,4 +667,11 @@ func (nb *NetboxPusher) createIpPrefix(prefix string, tag []*models.NestedTag) (
 	}
 	nb.logger.Info("ipam prefix created", zap.String("prefix", prefix))
 	return created.Payload.ID, nil
+}
+
+func checkIpVersion(ipAddress string) (string, error) {
+	if net.ParseIP(ipAddress).To4() == nil {
+		return "ipv6", nil
+	}
+	return "ipv4", nil
 }

@@ -424,7 +424,7 @@ func TestCheckInventoriesNotEqual(t *testing.T) {
 		Serial: "serial_test_other",
 	}
 
-	var DiffsRet DiffsInv
+	var DiffsRet DiffsInvRet
 	var DiffsInv DiffInventoriesRet
 
 	DiffsInv.DeviceID.SuzieQDevId = sqInv.DeviceID

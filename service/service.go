@@ -89,6 +89,8 @@ func (ds *DiodeService) Start() error {
 						ds.logger.Error("error during traslating data", zap.String("policy", policy), zap.Error(err))
 					}
 				}
+
+
 			case <-ds.asyncContext.Done():
 				ds.logger.Info("service context cancelled")
 				return
