@@ -103,6 +103,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
+
 			var deviceJson DeviceJsonReturn
 			err = json.Unmarshal(j, &deviceJson)
 			if err != nil {
@@ -172,6 +173,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			if len(ifce.Id) == 0 {
 				continue
 			}
+
 			device, err := st.db.GetDeviceByPolicyAndNamespaceAndHostname(ifce.Policy, ifce.Namespace, ifce.Hostname)
 			if err != nil {
 				errs = errors.Join(errs, err)
@@ -255,7 +257,6 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				if err != nil {
 					errs = errors.Join(errs, err)
 				}
-
 			}
 		}
 

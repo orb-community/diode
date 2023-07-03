@@ -29,7 +29,6 @@ type DeviceJsonReturn struct {
 		Address string `json:"ip_address,omitempty"`
 		Version string `json:"ip_version,omitempty"`
 	} `json:"primary_ip,omitempty"`
- 
 }
 
 type IfJsonReturn struct {
@@ -132,6 +131,7 @@ type DiffInterfaceRet struct {
 	} `json:"ifc_state,omitempty"`
 }
 
+
 type DiffsInvRet struct {
 	InventoriesDiffs []DiffInventoriesRet `json:"inventories_diffs"`
 }
@@ -184,12 +184,10 @@ func (DeviceJsonReturn) CheckDeviceEqual(sqDevice, dbDevice DeviceJsonReturn) (s
 				DiffJsonRet.Model.NetBoxModel = dbDevice.Dtype.Model
 				DiffJsonRet.Model.SuzieQModel = sqDevice.Dtype.Model
 			}
-
 			if sqDevice.Platform.Name != dbDevice.Platform.Name {
 				DiffJsonRet.Platform.NetBoxPltName = dbDevice.Platform.Name
 				DiffJsonRet.Platform.SuzieQPltName = sqDevice.Platform.Name
 			}
-			
 			if sqDevice.Status != dbDevice.Status {
 				DiffJsonRet.Status.NetBoxStatus = dbDevice.Status
 				DiffJsonRet.Status.SuzieQStatus = sqDevice.Status
@@ -206,7 +204,6 @@ func (DeviceJsonReturn) CheckDeviceEqual(sqDevice, dbDevice DeviceJsonReturn) (s
 				DiffJsonRet.Version.NetBoxVersion = dbDevice.IpAddress.Version
 				DiffJsonRet.Version.SuzieQVersion = sqDevice.IpAddress.Version
 			}
-			
 			DiffJsonRet.Name.NetBoxName = sqDevice.Name
 			DiffJsonRet.Name.SuzieQName = sqDevice.Name
 			DiffDev.DeviceDiffs = append(DiffDev.DeviceDiffs, DiffJsonRet)
@@ -279,6 +276,7 @@ func (InvJsonReturn) CheckInventoriesEqual(sqInventory, dbInventory InvJsonRetur
 			return sb.String(), nil
 		} else {
 			var DiffsRet DiffsInvRet
+
 			var DiffsInv DiffInventoriesRet
 			if sqInventory.AssetTag != dbInventory.AssetTag {
 				DiffsInv.AssetTag.SuzieQAssetTag = sqInventory.AssetTag
