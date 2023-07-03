@@ -55,9 +55,6 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			
 			var deviceAddresses []string
 
-			device.Address = "12.12.12.1/24" // Change the device addr to be matched with one of the ifc
-			deviceAddresses = append(deviceAddresses, device.Address)
-
 			ipAddr := net.ParseIP(host) 
 			if ipAddr != nil { 
 				// Only enters here if the IP is valid
