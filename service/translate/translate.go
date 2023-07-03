@@ -239,12 +239,8 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				continue
 			}
 			for _, ip := range newInterface.IpAddresses {
-				isMatch := false
-				if device.Address == ip.Address {
-					isMatch = true
-				}
 
-				j, err := st.translateIpInterface(&ip, newInterface.NetboxRefId, isMatch)
+				j, err := st.translateIpInterface(&ip, newInterface.NetboxRefId)
 				if err != nil {
 					errs = errors.Join(errs, err)
 					continue
@@ -416,11 +412,10 @@ func (st *SuzieQTranslate) translateInterface(ifs *storage.DbInterface, deviceID
 	return json.Marshal(ret)
 }
 
-func (st *SuzieQTranslate) translateIpInterface(ip *storage.IpAddress, ifID int64, isMatch bool) ([]byte, error) {
+func (st *SuzieQTranslate) translateIpInterface(ip *storage.IpAddress, ifID int64) ([]byte, error) {
 	var ret IfIpJsonReturn
 	ret.IfID = ifID
 	ret.Ip = ip.Address
-	ret.IsPrimaryIp = isMatch
 	return json.Marshal(ret)
 }
 

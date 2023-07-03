@@ -45,7 +45,6 @@ type IfJsonReturn struct {
 type IfIpJsonReturn struct {
 	IfID int64  `json:"assigned_object_id"`
 	Ip   string `json:"address"`
-	IsPrimaryIp bool `json:"is_primary_ip"`
 }
 
 type InvJsonReturn struct {
