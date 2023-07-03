@@ -11,7 +11,7 @@ diode:
           sources:
             - name: default_inventory
               hosts:
-                - url: ssh://192.168.0.4:2021 username=user password=password
+                - url: ssh://networklab.ops.orb.live:2021 username=root password=password
           devices:
             - name: default_devices
               transport: ssh

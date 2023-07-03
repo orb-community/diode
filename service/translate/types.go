@@ -2,7 +2,6 @@ package translate
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strings"
 )
@@ -26,6 +25,10 @@ type DeviceJsonReturn struct {
 	Site *struct {
 		Name string `json:"name"`
 	} `json:"site,omitempty"`
+	IpAddress *struct {
+		Address string `json:"ip_address,omitempty"`
+		Version string `json:"ip_version,omitempty"`
+	} `json:"primary_ip,omitempty"`
 }
 
 type IfJsonReturn struct {
@@ -87,6 +90,14 @@ type DiffJsonDeviceRet struct {
 		SuzieQSiteName string `json:"suzieq_site_name,omitempty"`
 		NetBoxSiteName string `json:"netbox_site_name,omitempty"`
 	} `json:"dev_site_name,omitempty"`
+	PrimaryIP struct {
+		SuzieQAddress string `json:"suzieq_address,omitempty"`
+		NetBoxAddress string `json:"netbox_address,omitempty"`
+	} `json:"dev_primary_ip,omitempty"`
+	Version struct {
+		SuzieQVersion string `json:"suzieq_version,omitempty"`
+		NetBoxVersion string `json:"netbox_version,omitempty"`
+	} `json:"dev_version,omitempty"`
 }
 
 type DiffsInterface struct {
@@ -120,7 +131,8 @@ type DiffInterfaceRet struct {
 	} `json:"ifc_state,omitempty"`
 }
 
-type DiffsInv struct {
+
+type DiffsInvRet struct {
 	InventoriesDiffs []DiffInventoriesRet `json:"inventories_diffs"`
 }
 
@@ -184,9 +196,13 @@ func (DeviceJsonReturn) CheckDeviceEqual(sqDevice, dbDevice DeviceJsonReturn) (s
 				DiffJsonRet.Serial.NetBoxSerial = dbDevice.Serial
 				DiffJsonRet.Serial.SuzieQSerial = sqDevice.Serial
 			}
-			if sqDevice.Site.Name != dbDevice.Site.Name {
-				DiffJsonRet.SiteName.NetBoxSiteName = dbDevice.Site.Name
-				DiffJsonRet.SiteName.SuzieQSiteName = sqDevice.Site.Name
+			if sqDevice.IpAddress.Address != dbDevice.IpAddress.Address {
+				DiffJsonRet.PrimaryIP.NetBoxAddress = dbDevice.IpAddress.Address
+				DiffJsonRet.PrimaryIP.SuzieQAddress = sqDevice.IpAddress.Address
+			}
+			if sqDevice.IpAddress.Version != dbDevice.IpAddress.Version {
+				DiffJsonRet.Version.NetBoxVersion = dbDevice.IpAddress.Version
+				DiffJsonRet.Version.SuzieQVersion = sqDevice.IpAddress.Version
 			}
 			DiffJsonRet.Name.NetBoxName = sqDevice.Name
 			DiffJsonRet.Name.SuzieQName = sqDevice.Name
@@ -195,14 +211,12 @@ func (DeviceJsonReturn) CheckDeviceEqual(sqDevice, dbDevice DeviceJsonReturn) (s
 			if err != nil {
 				return "", err
 			}
-			fmt.Println(sb.String())
 			sb.WriteString(string(DiffDevJson))
 
 			return sb.String(), nil
 		}
 	} else if (DeviceJsonReturn{}) == sqDevice {
 		sb.WriteString("Empty object catched by Suzie Q")
-		fmt.Println(sb.String())
 		return sb.String(), nil
 	}
 	return "", nil
@@ -213,7 +227,6 @@ func (IfJsonReturn) CheckInterfaceEqual(sqInterface, dbInterface IfJsonReturn) (
 	if sqInterface.Name == dbInterface.Name {
 		if reflect.DeepEqual(sqInterface, dbInterface) {
 			sb.WriteString("Interfaces are totally equal\n")
-			fmt.Println(sb.String())
 			return sb.String(), nil
 		} else {
 			var ifcDiffs DiffInterfaceRet
@@ -246,12 +259,10 @@ func (IfJsonReturn) CheckInterfaceEqual(sqInterface, dbInterface IfJsonReturn) (
 				return "", err
 			}
 			sb.WriteString(string(DiffIfcJson))
-			fmt.Println(sb.String())
 			return sb.String(), nil
 		}
 	} else if (IfJsonReturn{}) == sqInterface {
 		sb.WriteString("Empty object catched by Suzie Q")
-		fmt.Println(sb.String())
 		return sb.String(), nil
 	}
 	return "", nil
@@ -264,7 +275,8 @@ func (InvJsonReturn) CheckInventoriesEqual(sqInventory, dbInventory InvJsonRetur
 			sb.WriteString("Inventories are totally equal\n")
 			return sb.String(), nil
 		} else {
-			var DiffsRet DiffsInv
+			var DiffsRet DiffsInvRet
+
 			var DiffsInv DiffInventoriesRet
 			if sqInventory.AssetTag != dbInventory.AssetTag {
 				DiffsInv.AssetTag.SuzieQAssetTag = sqInventory.AssetTag
@@ -296,13 +308,10 @@ func (InvJsonReturn) CheckInventoriesEqual(sqInventory, dbInventory InvJsonRetur
 				return "", err
 			}
 			sb.WriteString(string(DiffInvJson))
-			fmt.Println(sb.String())
-
 			return sb.String(), nil
 		}
 	} else if (InvJsonReturn{}) == sqInventory {
 		sb.WriteString("Empty object catched by Suzie Q")
-		fmt.Println(sb.String())
 		return sb.String(), nil
 	}
 	return "", nil

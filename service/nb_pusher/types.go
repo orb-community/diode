@@ -45,14 +45,21 @@ type NetboxPlatform struct {
 }
 
 type NetboxDevice struct {
-	Site     *NetboxSite       `json:"site"`
-	Role     *NetboxObject     `json:"device_role"`
-	Type     *NetboxDeviceType `json:"device_type"`
-	Platform *NetboxPlatform   `json:"platform"`
-	Name     string            `json:"name"`
-	Slug     string            `json:"slug"`
-	Status   string            `json:"status"`
-	Serial   string            `json:"serial"`
+	Site      	*NetboxSite       `json:"site"`
+	Role      	*NetboxObject     `json:"device_role"`
+	Type      	*NetboxDeviceType `json:"device_type"`
+	Platform  	*NetboxPlatform   `json:"platform"`
+	Name      	string            `json:"name"`
+	Slug      	string            `json:"slug"`
+	Status    	string            `json:"status"`
+	Serial    	string            `json:"serial"`
+}
+
+type NetboxPrimaryIpChecker struct {
+	IpInfo struct {
+		DeviceAddresses []string `json:"device_id"`
+		DeviceId []int64 
+	}
 }
 
 type NetboxInterface struct {

@@ -33,7 +33,7 @@ func (s sqliteStorage) GetInterfacesByName(name string) ([]DbInterface, error) {
 		WHERE name = $1
 	`, name)
 	if err != nil {
-		return nil, errors.Join(errors.New("storage fetch interface fail on new function"), err)
+		return nil, errors.Join(errors.New("storage fetch interface fail"), err)
 	}
 	var interfaces []DbInterface
 	var configAsString string

@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 
 	"github.com/orb-community/diode/service/config"
 	"github.com/orb-community/diode/service/nb_pusher"
@@ -21,6 +22,7 @@ type Translator interface {
 
 const invalid_id int64 = -1
 
+
 type SuzieQTranslate struct {
 	ctx    context.Context
 	logger *zap.Logger
@@ -28,6 +30,8 @@ type SuzieQTranslate struct {
 	db     storage.Service
 	pusher nb_pusher.Pusher
 }
+
+var ipChecker nb_pusher.NetboxPrimaryIpChecker
 
 func New(ctx context.Context, logger *zap.Logger, config *config.Config, db storage.Service, pusher nb_pusher.Pusher) Translator {
 	return &SuzieQTranslate{ctx: ctx, logger: logger, config: config, db: db, pusher: pusher}
@@ -40,6 +44,58 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 
 			if len(device.Id) == 0 {
 				continue
+			}
+
+			// Separates host from port
+			host, _, err := net.SplitHostPort(device.Address)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			
+			var deviceAddresses []string
+
+			ipAddr := net.ParseIP(host) 
+			if ipAddr != nil { 
+				// Only enters here if the IP is valid
+				device.Address = ipAddr.String()
+			} else {
+				_, err = net.LookupHost(host) 
+				if err != nil {
+					errs = errors.Join(errs, err)
+					continue
+				} else {
+					ips, err := net.LookupIP(host)
+					if err != nil {
+						errs = errors.Join(errs, err)
+						continue
+					} else {
+						for _, ip := range ips {
+							deviceAddresses = append(deviceAddresses, ip.String())
+							// A host may have multiple IPs
+						}
+						// Get the interfaces for that device to compare the IPs with the device IPs
+						ifs, err := st.db.GetInterfaceByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
+						if err != nil {
+							errs = errors.Join(errs, err)
+							continue
+						}
+						// If there are multiple IPs, then check if the address is in the list				
+						for _, ifc := range ifs {
+							if len(ifc.IpAddresses) > 0 {
+								for idx := range ifc.IpAddresses {
+									for k := range deviceAddresses {
+										if ifc.IpAddresses[idx].Address == deviceAddresses[k] {
+											st.logger.Info("matching ip addr between interface and device", zap.String("primary IP: ", deviceAddresses[k]))
+											device.Address = ifc.IpAddresses[idx].Address 
+											// Store the matched Ifc IP to the device.Address field (later will be translated and stored on the checker struct)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 
 			j, err := st.translateDevice(&device)
@@ -61,6 +117,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
+
 			for _, dbDevice := range DbDevices {
 				dbByte, err := st.translateDevice(&dbDevice)
 				if err != nil {
@@ -88,6 +145,11 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
+
+			// we store multiples device addresses because the agent can catch more than one per round
+			// the ipChecker struct will be sent to the createInterfaceIpAddress as parameter
+			ipChecker.IpInfo.DeviceAddresses = append(ipChecker.IpInfo.DeviceAddresses, deviceJson.IpAddress.Address) 
+			ipChecker.IpInfo.DeviceId = append(ipChecker.IpInfo.DeviceId, id)
 			newDevice, err := st.db.UpdateDevice(device.Id, id)
 			if err != nil {
 				errs = errors.Join(errs, err)
@@ -101,6 +163,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
+
 		}
 		return errs
 	} else if ifs, ok := data.([]storage.DbInterface); ok {
@@ -164,7 +227,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 					st.logger.Error("error checking interface equality", zap.Any("error: ", err))
 					continue
 				}
-				st.logger.Info("devices difference", zap.String("diffs: ", ret))
+				st.logger.Info("interfaces difference", zap.String("diffs: ", ret))
 			}
 
 			id, err := st.pusher.CreateInterface(j)
@@ -178,6 +241,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				continue
 			}
 			for _, ip := range newInterface.IpAddresses {
+
 				j, err := st.translateIpInterface(&ip, newInterface.NetboxRefId)
 				if err != nil {
 					errs = errors.Join(errs, err)
@@ -189,12 +253,13 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				if err != nil {
 					errs = errors.Join(errs, err)
 				}
-
-				if _, err := st.pusher.CreateInterfaceIpAddress(j); err != nil {
+				_, err = st.pusher.CreateInterfaceIpAddress(j, ipChecker)
+				if err != nil {
 					errs = errors.Join(errs, err)
 				}
 			}
 		}
+
 		return errs
 	} else if vlans, ok := data.([]storage.DbVlan); ok {
 		var errs error
@@ -283,6 +348,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 		}
 		return errs
 	}
+
 	return errors.New("no valid translatable data found")
 }
 
@@ -327,6 +393,11 @@ func (st *SuzieQTranslate) translateDevice(device *storage.DbDevice) ([]byte, er
 		}{Name: device.Os}
 		ret.Platform.Mfr.Name = device.Vendor
 	}
+	ret.IpAddress = &struct{
+		Address string "json:\"ip_address,omitempty\""; 
+		Version string "json:\"ip_version,omitempty\"";
+		}{Address: device.Address, Version: ""}
+
 	return json.Marshal(ret)
 }
 
