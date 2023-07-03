@@ -209,15 +209,15 @@ func (nb *NetboxPusher) PrimaryIpCheck(IfcIpAddress string, IfcIpId int64, ipChe
 
 	// iterate over all devices addresses recently created 
 	for idx, addr := range ipChecker.IpInfo.DeviceAddresses {
-		addrIfcWithoutMask := strings.Split(IfcIpAddress, "/")
-		addrDvcWithoutMask := strings.Split(addr, "/")
-		if addrDvcWithoutMask[0] == addrIfcWithoutMask[0] {
-			ipVers, err := checkIpVersion(addrDvcWithoutMask[0])
+		IfcIPWithoutMask := strings.Split(IfcIpAddress, "/")
+		DvcIPWithoutMask := strings.Split(addr, "/")
+		if DvcIPWithoutMask[0] == IfcIPWithoutMask[0] {
+			ipVers, err := checkIpVersion(DvcIPWithoutMask[0])
 			if err != nil {
 				return invalid_id, err
 			}
 			nb.UpdateDevice(IfcIpId, ipChecker.IpInfo.DeviceId[idx], ipVers)
-			// if there's a match over the objects: update the device
+			// if there's a match over the objects: update the device setting the primary ip to the matched one
 		}
 	}
 	
@@ -252,12 +252,13 @@ func (nb *NetboxPusher) UpdateDevice(ifcIpId, deviceId int64, ipVersion string) 
 		data.PrimaryIp6 = &ifcIpId
 	}
 	
-	// Finishing constructing the mandatory fields for update call
+	// Finishing constructing the mandatory fields fo make update call
 	data.DeviceRole = &device.Payload.DeviceRole.ID
 	data.DeviceType = &device.Payload.DeviceType.ID
 	data.Site = &device.Payload.Site.ID
 	dvcUpdateParams.Data = &data
 	dvcUpdateParams.ID = device.Payload.ID
+
 	deviceUpdateOk, err := nb.client.Dcim.DcimDevicesUpdate(dvcUpdateParams, nil)
 
 	if err != nil {

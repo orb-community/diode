@@ -52,6 +52,11 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
+			
+			var deviceAddresses []string
+
+			device.Address = "12.12.12.1/24" // Change the device addr to be matched with one of the ifc
+			deviceAddresses = append(deviceAddresses, device.Address)
 
 			ipAddr := net.ParseIP(host) 
 			if ipAddr != nil { 
@@ -69,33 +74,31 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 						continue
 					} else {
 						for _, ip := range ips {
-							device.Address = ip.String()
+							deviceAddresses = append(deviceAddresses, ip.String())
+							// A host may have multiple IPs
+						}
+						// Get the interfaces for that device to compare the IPs with the device IPs
+						ifs, err := st.db.GetInterfaceByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
+						if err != nil {
+							errs = errors.Join(errs, err)
+							continue
+						}
+						// If there are multiple IPs, then check if the address is in the list				
+						for _, ifc := range ifs {
+							if len(ifc.IpAddresses) > 0 {
+								for idx := range ifc.IpAddresses {
+									for k := range deviceAddresses {
+										if ifc.IpAddresses[idx].Address == deviceAddresses[k] {
+											st.logger.Info("matching ip addr between interface and device", zap.String("primary IP: ", deviceAddresses[k]))
+											device.Address = ifc.IpAddresses[idx].Address 
+											// Store the matched Ifc IP to the device.Address field (later will be translated and stored on the checker struct)
+										}
+									}
+								}
+							}
 						}
 					}
 				}
-			}
-			
-			ifs, err := st.db.GetInterfaceByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
-
-			for _, ifc := range ifs {
-				if len(ifc.IpAddresses) > 0 {
-					for idx := range ifc.IpAddresses {
-						if ifc.IpAddresses[idx].Address == device.Address {
-							st.logger.Info("matching ip addr between interface and device", zap.String("primary IP: ", device.Address))
-						} 
-					}
-				}
-			}
-	
-			DbDevices, err := st.db.GetDevicesByHostname(device.Hostname)
-			if err != nil {
-				err = errors.New("error returning devices from db")
-				errs = errors.Join(errs, err)
-				continue
 			}
 
 			j, err := st.translateDevice(&device)
@@ -107,6 +110,13 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			err = json.Unmarshal(j, &deviceJson)
 			if err != nil {
 				errs = errors.Join(err)
+				continue
+			}
+
+			DbDevices, err := st.db.GetDevicesByHostname(device.Hostname)
+			if err != nil {
+				err = errors.New("error returning devices from db")
+				errs = errors.Join(errs, err)
 				continue
 			}
 
@@ -138,6 +148,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				continue
 			}
 
+			// we store multiples device addresses because the agent can catch more than one per round
 			// the ipChecker struct will be sent to the createInterfaceIpAddress as parameter
 			ipChecker.IpInfo.DeviceAddresses = append(ipChecker.IpInfo.DeviceAddresses, deviceJson.IpAddress.Address) 
 			ipChecker.IpInfo.DeviceId = append(ipChecker.IpInfo.DeviceId, id)
