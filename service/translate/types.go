@@ -29,9 +29,7 @@ type DeviceJsonReturn struct {
 		Address string `json:"ip_address,omitempty"`
 		Version string `json:"ip_version,omitempty"`
 	} `json:"primary_ip,omitempty"`
- 
 }
-
 type IfJsonReturn struct {
 	DeviceID   int64  `json:"device_id"`
 	Name       string `json:"name"`
@@ -157,7 +155,7 @@ type DiffInventoriesRet struct {
 		SuzieQPartId string `json:"suzieq_partid,omitempty"`
 		NetBoxPartid string `json:"netbox_partid,omitempty"`
 	} `json:"part_id,omitempty"`
-	Descr  struct {
+	Descr struct {
 		SuzieQDescr string `json:"suzieq_descr,omitempty"`
 		NetBoxDescr string `json:"netbox_descr,omitempty"`
 	} `json:"descr,omitempty"`
@@ -189,7 +187,7 @@ func (DeviceJsonReturn) CheckDeviceEqual(sqDevice, dbDevice DeviceJsonReturn) (s
 				DiffJsonRet.Platform.NetBoxPltName = dbDevice.Platform.Name
 				DiffJsonRet.Platform.SuzieQPltName = sqDevice.Platform.Name
 			}
-			
+
 			if sqDevice.Status != dbDevice.Status {
 				DiffJsonRet.Status.NetBoxStatus = dbDevice.Status
 				DiffJsonRet.Status.SuzieQStatus = sqDevice.Status
@@ -206,7 +204,7 @@ func (DeviceJsonReturn) CheckDeviceEqual(sqDevice, dbDevice DeviceJsonReturn) (s
 				DiffJsonRet.Version.NetBoxVersion = dbDevice.IpAddress.Version
 				DiffJsonRet.Version.SuzieQVersion = sqDevice.IpAddress.Version
 			}
-			
+
 			DiffJsonRet.Name.NetBoxName = sqDevice.Name
 			DiffJsonRet.Name.SuzieQName = sqDevice.Name
 			DiffDev.DeviceDiffs = append(DiffDev.DeviceDiffs, DiffJsonRet)
@@ -254,7 +252,7 @@ func (IfJsonReturn) CheckInterfaceEqual(sqInterface, dbInterface IfJsonReturn) (
 				ifcDiffs.Mtu.SuzieQIfcMtu = sqInterface.Mtu
 				ifcDiffs.Mtu.NetBoxIfcMtu = dbInterface.Mtu
 			}
-			
+
 			IfcDiffsReturn.InterfaceDiffs = append(IfcDiffsReturn.InterfaceDiffs, ifcDiffs)
 
 			DiffIfcJson, err := json.Marshal(IfcDiffsReturn)
@@ -279,6 +277,7 @@ func (InvJsonReturn) CheckInventoriesEqual(sqInventory, dbInventory InvJsonRetur
 			return sb.String(), nil
 		} else {
 			var DiffsRet DiffsInvRet
+
 			var DiffsInv DiffInventoriesRet
 			if sqInventory.AssetTag != dbInventory.AssetTag {
 				DiffsInv.AssetTag.SuzieQAssetTag = sqInventory.AssetTag

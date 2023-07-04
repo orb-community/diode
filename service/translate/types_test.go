@@ -2,8 +2,6 @@ package translate
 
 import (
 	"encoding/json"
-	"fmt"
-	"net"
 	"strings"
 	"testing"
 
@@ -238,7 +236,6 @@ func TestCheckDeviceWithEmptyObject(t *testing.T) {
 
 	sqDevice := DeviceJsonReturn{}
 
-
 	sb.WriteString("Empty object catched by Suzie Q")
 
 	got, err := dbDevice.CheckDeviceEqual(sqDevice, dbDevice)
@@ -301,7 +298,7 @@ func TestCheckInterfaceNotEqual(t *testing.T) {
 		MacAddress: "test_addr_other",
 		State:      "test_state_other",
 	}
-	
+
 	var ifcDiffs DiffInterfaceRet
 	var IfcDiffsReturn DiffsInterface
 
@@ -427,23 +424,20 @@ func TestCheckInventoriesNotEqual(t *testing.T) {
 	}
 
 	var DiffsRet DiffsInvRet
+
 	var DiffsInv DiffInventoriesRet
 
 	DiffsInv.DeviceID.SuzieQDevId = sqInv.DeviceID
 	DiffsInv.DeviceID.NetBoxDevId = dbInv.DeviceID
 
-
 	DiffsInv.AssetTag.SuzieQAssetTag = sqInv.AssetTag
 	DiffsInv.AssetTag.NetBoxAssetTag = dbInv.AssetTag
-
 
 	DiffsInv.MfrName.SuzieQMfrName = sqInv.Mfr.Name
 	DiffsInv.MfrName.NetBoxMfrName = dbInv.Mfr.Name
 
-
 	DiffsInv.PartId.SuzieQPartId = sqInv.PartId
 	DiffsInv.PartId.NetBoxPartid = dbInv.PartId
-
 
 	DiffsInv.Descr.SuzieQDescr = sqInv.Descr
 	DiffsInv.Descr.NetBoxDescr = dbInv.Descr
@@ -453,7 +447,7 @@ func TestCheckInventoriesNotEqual(t *testing.T) {
 
 	DiffsInv.Name.NetBoxIfcName = dbInv.Name
 	DiffsInv.Name.SuzieQIfcName = sqInv.Name
-	
+
 	DiffsRet.InventoriesDiffs = append(DiffsRet.InventoriesDiffs, DiffsInv)
 
 	DiffInvJson, _ := json.Marshal(DiffsRet)
@@ -484,7 +478,6 @@ func TestCheckInventoryWithEmptyObject(t *testing.T) {
 
 	dbInv := InvJsonReturn{}
 
-
 	sb.WriteString("Empty object catched by Suzie Q")
 
 	got, err := dbInv.CheckInventoriesEqual(dbInv, sqInv)
@@ -494,23 +487,3 @@ func TestCheckInventoryWithEmptyObject(t *testing.T) {
 	assert.Equal(t, stringRet, got)
 
 }
-
-func TestSplitFunction(t *testing.T) {
-
-	idAddr := " 172.21.21.4:22"
-
-	host, port, err := net.SplitHostPort(idAddr)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Println(host)
-	fmt.Println(port)
-
-	assert.Equal(t, "172.21.21.4", host)
-	assert.Equal(t, "22", port)
-
-
-	
-}
-	

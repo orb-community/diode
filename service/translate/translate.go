@@ -24,7 +24,6 @@ type Translator interface {
 
 const invalid_id int64 = -1
 
-
 type SuzieQTranslate struct {
 	ctx    context.Context
 	logger *zap.Logger
@@ -54,7 +53,6 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			device.Address = "[fe80::42:acff:fe15:1504]:8080"
 
 			var deviceAddresses []string
 			// Check if the address is an IP or DNS host or a IP with port
@@ -98,7 +96,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 								for k := range deviceAddresses {
 									if ifc.IpAddresses[idx].Address == deviceAddresses[k] {
 										st.logger.Info("matching ip addr between interface and device", zap.String("primary IP: ", deviceAddresses[k]))
-										device.Address = ifc.IpAddresses[idx].Address 
+										device.Address = ifc.IpAddresses[idx].Address
 										// Store the matched Ifc IP to the device.Address field (later will be translated and stored on the checker struct)
 									}
 								}
@@ -113,6 +111,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				errs = errors.Join(errs, err)
 				continue
 			}
+
 			var deviceJson DeviceJsonReturn
 			err = json.Unmarshal(j, &deviceJson)
 			if err != nil {
@@ -157,7 +156,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 
 			// we store multiples device addresses because the agent can catch more than one per round
 			// the ipChecker struct will be sent to the createInterfaceIpAddress as parameter
-			ipChecker.IpInfo.DeviceAddresses = append(ipChecker.IpInfo.DeviceAddresses, deviceJson.IpAddress.Address) 
+			ipChecker.IpInfo.DeviceAddresses = append(ipChecker.IpInfo.DeviceAddresses, deviceJson.IpAddress.Address)
 			ipChecker.IpInfo.DeviceId = append(ipChecker.IpInfo.DeviceId, id)
 			newDevice, err := st.db.UpdateDevice(device.Id, id)
 			if err != nil {
@@ -182,6 +181,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			if len(ifce.Id) == 0 {
 				continue
 			}
+
 			device, err := st.db.GetDeviceByPolicyAndNamespaceAndHostname(ifce.Policy, ifce.Namespace, ifce.Hostname)
 			if err != nil {
 				errs = errors.Join(errs, err)
@@ -303,7 +303,6 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				continue
 			}
 
-
 			DbInventories, err := st.db.GetInventoriesByName(inventory.Name)
 			if err != nil {
 				st.logger.Error("error retrieving inventories", zap.Any("error: ", err))
@@ -402,10 +401,10 @@ func (st *SuzieQTranslate) translateDevice(device *storage.DbDevice) ([]byte, er
 		}{Name: device.Os}
 		ret.Platform.Mfr.Name = device.Vendor
 	}
-	ret.IpAddress = &struct{
-		Address string "json:\"ip_address,omitempty\""; 
-		Version string "json:\"ip_version,omitempty\"";
-		}{Address: device.Address, Version: ""}
+	ret.IpAddress = &struct {
+		Address string "json:\"ip_address,omitempty\""
+		Version string "json:\"ip_version,omitempty\""
+	}{Address: device.Address, Version: ""}
 
 	return json.Marshal(ret)
 }
@@ -480,7 +479,6 @@ func (st *SuzieQTranslate) checkExistingInventories(device *storage.DbDevice) er
 	}
 	return nil
 }
-
 
 func removeSuffix(s string) string {
 	re := regexp.MustCompile(`:\d$`)
