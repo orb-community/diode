@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"regexp"
 
@@ -57,6 +58,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			// Check if the address is an IP or DNS host or a IP with port
 			if ip := net.ParseIP(device.Address); ip != nil {
 				device.Address = removeSuffix(device.Address)
+
 				for _, ifc := range ifs {
 					if len(ifc.IpAddresses) > 0 {
 						for idx := range ifc.IpAddresses {
@@ -76,6 +78,7 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				}
 				ips, err := net.LookupIP(device.Address)
 				if err != nil {
+					fmt.Println("Error here 1: ", err)
 					errs = errors.Join(errs, err)
 					continue
 				} else {
