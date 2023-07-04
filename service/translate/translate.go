@@ -8,7 +8,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
+	"regexp"
 
 	"github.com/orb-community/diode/service/config"
 	"github.com/orb-community/diode/service/nb_pusher"
@@ -46,50 +48,58 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				continue
 			}
 
-			// Separates host from port
-			host, _, err := net.SplitHostPort(device.Address)
+			// Get the interfaces for that device to compare the IPs with the device IPs
+			ifs, err := st.db.GetInterfaceByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			
-			var deviceAddresses []string
+			device.Address = "[fe80::42:acff:fe15:1504]:8080"
 
-			ipAddr := net.ParseIP(host) 
-			if ipAddr != nil { 
-				// Only enters here if the IP is valid
-				device.Address = ipAddr.String()
+			var deviceAddresses []string
+			// Check if the address is an IP or DNS host or a IP with port
+			if ip := net.ParseIP(device.Address); ip != nil {
+				fmt.Println("Device address: ", device.Address)
+				device.Address = removeSuffix(device.Address)
+				fmt.Println("Device address without port: ", device.Address)
+				for _, ifc := range ifs {
+					if len(ifc.IpAddresses) > 0 {
+						for idx := range ifc.IpAddresses {
+							if ifc.IpAddresses[idx].Address == device.Address {
+								fmt.Println("IPS: ", ifc.IpAddresses[idx].Address)
+								st.logger.Info("matching ip addr between interface and device", zap.String("primary IP: ", ifc.IpAddresses[idx].Address))
+								device.Address = ifc.IpAddresses[idx].Address
+							}
+						}
+					}
+				}
 			} else {
-				_, err = net.LookupHost(host) 
+				// If enters on this branch, the address is a DNS host, or a IP with port
+				device.Address, _, err = net.SplitHostPort(device.Address)
 				if err != nil {
+					fmt.Println("Error here: ", err)
+					errs = errors.Join(errs, err)
+					continue
+				}
+				ips, err := net.LookupIP(device.Address)
+				fmt.Println("IPS: ", ips)
+				if err != nil {
+					fmt.Println("Error here 1: ", err)
 					errs = errors.Join(errs, err)
 					continue
 				} else {
-					ips, err := net.LookupIP(host)
-					if err != nil {
-						errs = errors.Join(errs, err)
-						continue
-					} else {
-						for _, ip := range ips {
-							deviceAddresses = append(deviceAddresses, ip.String())
-							// A host may have multiple IPs
-						}
-						// Get the interfaces for that device to compare the IPs with the device IPs
-						ifs, err := st.db.GetInterfaceByPolicyAndNamespaceAndHostname(device.Policy, device.Namespace, device.Hostname)
-						if err != nil {
-							errs = errors.Join(errs, err)
-							continue
-						}
-						// If there are multiple IPs, then check if the address is in the list				
-						for _, ifc := range ifs {
-							if len(ifc.IpAddresses) > 0 {
-								for idx := range ifc.IpAddresses {
-									for k := range deviceAddresses {
-										if ifc.IpAddresses[idx].Address == deviceAddresses[k] {
-											st.logger.Info("matching ip addr between interface and device", zap.String("primary IP: ", deviceAddresses[k]))
-											device.Address = ifc.IpAddresses[idx].Address 
-											// Store the matched Ifc IP to the device.Address field (later will be translated and stored on the checker struct)
-										}
+					for _, ip := range ips {
+						deviceAddresses = append(deviceAddresses, ip.String())
+						// A host may have multiple IPs
+					}
+					for _, ifc := range ifs {
+						if len(ifc.IpAddresses) > 0 {
+							for idx := range ifc.IpAddresses {
+								for k := range deviceAddresses {
+									if ifc.IpAddresses[idx].Address == deviceAddresses[k] {
+										st.logger.Info("matching ip addr between interface and device", zap.String("primary IP: ", deviceAddresses[k]))
+										device.Address = ifc.IpAddresses[idx].Address 
+										// Store the matched Ifc IP to the device.Address field (later will be translated and stored on the checker struct)
 									}
 								}
 							}
@@ -469,4 +479,10 @@ func (st *SuzieQTranslate) checkExistingInventories(device *storage.DbDevice) er
 		return st.Translate(inv)
 	}
 	return nil
+}
+
+
+func removeSuffix(s string) string {
+	re := regexp.MustCompile(`:\d$`)
+	return re.ReplaceAllString(s, "")
 }

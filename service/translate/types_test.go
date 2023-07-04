@@ -2,6 +2,8 @@ package translate
 
 import (
 	"encoding/json"
+	"fmt"
+	"net"
 	"strings"
 	"testing"
 
@@ -492,3 +494,23 @@ func TestCheckInventoryWithEmptyObject(t *testing.T) {
 	assert.Equal(t, stringRet, got)
 
 }
+
+func TestSplitFunction(t *testing.T) {
+
+	idAddr := " 172.21.21.4:22"
+
+	host, port, err := net.SplitHostPort(idAddr)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println(host)
+	fmt.Println(port)
+
+	assert.Equal(t, "172.21.21.4", host)
+	assert.Equal(t, "22", port)
+
+
+	
+}
+	
