@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"regexp"
 
@@ -57,14 +56,11 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 			var deviceAddresses []string
 			// Check if the address is an IP or DNS host or a IP with port
 			if ip := net.ParseIP(device.Address); ip != nil {
-				fmt.Println("Device address: ", device.Address)
 				device.Address = removeSuffix(device.Address)
-				fmt.Println("Device address without port: ", device.Address)
 				for _, ifc := range ifs {
 					if len(ifc.IpAddresses) > 0 {
 						for idx := range ifc.IpAddresses {
 							if ifc.IpAddresses[idx].Address == device.Address {
-								fmt.Println("IPS: ", ifc.IpAddresses[idx].Address)
 								st.logger.Info("matching ip addr between interface and device", zap.String("primary IP: ", ifc.IpAddresses[idx].Address))
 								device.Address = ifc.IpAddresses[idx].Address
 							}
@@ -75,14 +71,11 @@ func (st *SuzieQTranslate) Translate(data interface{}) error {
 				// If enters on this branch, the address is a DNS host, or a IP with port
 				device.Address, _, err = net.SplitHostPort(device.Address)
 				if err != nil {
-					fmt.Println("Error here: ", err)
 					errs = errors.Join(errs, err)
 					continue
 				}
 				ips, err := net.LookupIP(device.Address)
-				fmt.Println("IPS: ", ips)
 				if err != nil {
-					fmt.Println("Error here 1: ", err)
 					errs = errors.Join(errs, err)
 					continue
 				} else {

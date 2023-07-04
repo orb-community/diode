@@ -2,16 +2,16 @@ diode:
   config:
     output_type: otlp
     output_path: "127.0.0.1:4317"
-  policies:
+  policies:      
     discovery_1:
       kind: discovery
       backend: suzieq
-      data:
-        inventory:
+      data:     
+        inventory: 
           sources:
             - name: default_inventory
               hosts:
-                - url: ssh://networklab.ops.orb.live:2021 username=user password=password
+                - url: ssh://networklab.ops.orb.live:2021 username=root password=vfIdpfggFcEXD2J3
           devices:
             - name: default_devices
               transport: ssh
