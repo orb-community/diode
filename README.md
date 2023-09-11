@@ -1,4 +1,13 @@
-# Diode quickstart
+# What is Diode?
+
+Diode is a network discovery tool, designed to provide a framework for continuous scanning of network devices. It's meant to be used alongside Orb to help ingest the data, showcase differences between the observed data and the source of truth data that's in NetBox, and allow reconciliation between the two.
+
+Diode provides a modular system for leaning on other open source tools for performing the scans, with the first implemented module being [SuzieQ](https://github.com/netenglabs/suzieq)
+
+# Project Status
+Beta/Development (expect major architectural changes)
+
+# Quickstart
 
 This is a basic set of instructions on how to get started using Diode on your local machine using Docker.
 
